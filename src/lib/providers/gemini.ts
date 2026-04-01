@@ -1,5 +1,5 @@
 /**
- * Google Gemini — FREE tier, no credit card needed
+ * Google Gemini 2.5 Flash — FREE tier, no credit card needed
  * Get key at: https://aistudio.google.com
  */
 export async function callGemini(
@@ -10,7 +10,7 @@ export async function callGemini(
   if (!key) throw new Error('No Gemini API key available');
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

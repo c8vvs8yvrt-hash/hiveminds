@@ -16,7 +16,7 @@ export async function callCohere(
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({
-      model: 'command-r-plus',
+      model: 'command-a-03-2025',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 1024,
     }),

@@ -1,5 +1,5 @@
 /**
- * OpenRouter (DeepSeek) — FREE tier, no credit card needed
+ * OpenRouter (Qwen) — FREE tier, no credit card needed
  * Get key at: https://openrouter.ai
  */
 export async function callOpenRouter(
@@ -14,11 +14,11 @@ export async function callOpenRouter(
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${key}`,
-      'HTTP-Referer': 'https://hiveminds.app',
+      'HTTP-Referer': 'https://hiveminds-olive.vercel.app',
       'X-Title': 'HiveMinds',
     },
     body: JSON.stringify({
-      model: 'deepseek/deepseek-chat:free',
+      model: 'qwen/qwen3.6-plus-preview:free',
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -30,5 +30,11 @@ export async function callOpenRouter(
   }
 
   const data = await response.json();
-  return data.choices?.[0]?.message?.content ?? '';
+  // Some models return content directly, others use reasoning format
+  const content = data.choices?.[0]?.message?.content;
+  if (content) return content;
+  // Fallback: check reasoning field
+  const reasoning = data.choices?.[0]?.message?.reasoning;
+  if (reasoning) return reasoning;
+  return '';
 }

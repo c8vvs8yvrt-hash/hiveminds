@@ -3,7 +3,7 @@ import { PROVIDERS } from './constants';
 
 export function getInitialPrompt(providerName: string, question: string): string {
   const display = PROVIDERS[providerName]?.displayName ?? providerName;
-  return `You are ${display}, an AI assistant sitting at a roundtable discussion with other AI assistants (Claude, ChatGPT, Gemini, Grok, and Perplexity). A user has asked all of you this question:
+  return `You are ${display}, an AI assistant sitting at a roundtable discussion with other AI assistants (Gemini, Llama, Cohere, and Qwen). A user has asked all of you this question:
 
 "${question}"
 

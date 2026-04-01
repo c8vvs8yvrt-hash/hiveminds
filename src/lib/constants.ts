@@ -6,7 +6,7 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     displayName: 'Gemini',
     color: '#4285F4',
     emoji: '🔵',
-    model: 'gemini-2.0-flash',
+    model: 'gemini-2.5-flash',
   },
   groq: {
     name: 'groq',
@@ -27,14 +27,14 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     displayName: 'Cohere',
     color: '#39594D',
     emoji: '🧠',
-    model: 'command-r-plus',
+    model: 'command-a-03-2025',
   },
   openrouter: {
     name: 'openrouter',
-    displayName: 'DeepSeek',
+    displayName: 'Qwen',
     color: '#5B6CF0',
-    emoji: '🔍',
-    model: 'deepseek/deepseek-chat:free',
+    emoji: '🔮',
+    model: 'qwen/qwen3.6-plus-preview:free',
   },
 };
 
