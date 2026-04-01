@@ -17,7 +17,7 @@ export async function callGroq(
     },
     body: JSON.stringify({
       model: 'llama-3.3-70b-versatile',
-      max_tokens: 512,
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     }),
   });

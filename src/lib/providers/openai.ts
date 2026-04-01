@@ -17,7 +17,7 @@ export async function callOpenAI(
     },
     body: JSON.stringify({
       model: 'gpt-4o-mini',
-      max_tokens: 512,
+      max_tokens: 2048,
       messages: [{ role: 'user', content: prompt }],
     }),
   });

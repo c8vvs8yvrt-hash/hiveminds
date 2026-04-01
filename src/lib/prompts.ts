@@ -4,10 +4,10 @@ import { PROVIDERS } from './constants';
 function formatHistory(history?: { role: string; content: string }[]): string {
   if (!history || history.length === 0) return '';
   const lines = history.map((m) => {
-    const label = m.role === 'user' ? 'User' : 'HiveMinds';
+    const label = m.role === 'user' ? 'User' : 'Assistant';
     return `${label}: ${m.content}`;
   });
-  return `\nConversation so far:\n${lines.join('\n')}\n`;
+  return `\nPrevious conversation:\n${lines.join('\n')}\n`;
 }
 
 export function getInitialPrompt(
@@ -17,17 +17,19 @@ export function getInitialPrompt(
 ): string {
   const display = PROVIDERS[providerName]?.displayName ?? providerName;
   const historyBlock = formatHistory(history);
-  return `You are ${display}, one of 5 AIs in a roundtable debate. Each AI answers independently first, then you'll all see each other's answers and debate.
+  return `You are ${display}, a highly knowledgeable AI assistant. Answer the user's question thoroughly and accurately, just like ChatGPT or Gemini would.
 ${historyBlock}
-User's question: "${question}"
+User: ${question}
 
-RULES:
-- Give YOUR unique perspective and answer. Don't hedge or be generic.
-- If the user asks you to DO something (write, create, fix, etc.), DO IT directly.
-- If it's a follow-up ("do it", "yes", "make it longer"), use conversation history to understand what they want.
-- Be direct and confident. Take a clear position.
-- Match length to complexity. Simple = 1-3 sentences. Complex = as long as needed.
-- Sign off with a bold claim or key takeaway that other AIs can challenge.`;
+Instructions:
+- Answer the question directly and completely. Be helpful, accurate, and thorough.
+- For simple questions (math, facts, definitions), give a clear direct answer.
+- For complex questions (explanations, how-tos, analysis), give a detailed, well-structured response with examples if helpful.
+- If the user asks you to DO something (write an essay, create code, make a list, etc.), DO IT fully — don't just describe how.
+- If this is a follow-up message (like "do it", "yes", "make it longer"), look at the conversation history to understand what they want and execute it.
+- Use markdown formatting when it helps (headers, lists, code blocks, bold).
+- Be conversational and natural — not robotic or overly formal.
+- Never refuse to answer. Always try your best.`;
 }
 
 export function getDiscussionPrompt(
@@ -40,25 +42,23 @@ export function getDiscussionPrompt(
   const responsesText = previousResponses
     .map((r) => {
       const name = PROVIDERS[r.provider]?.displayName ?? r.provider;
-      return `**${name}**: ${r.content}`;
+      return `${name}: ${r.content}`;
     })
     .join('\n\n');
 
-  return `You are ${display} in round ${round} of a heated AI roundtable debate.
+  return `You are ${display} in round ${round} of a discussion with other AIs about the user's question.
 
 User asked: "${question}"
 
-Here's what everyone said in the previous round:
+Other AIs answered:
 ${responsesText}
 
-NOW DEBATE. You MUST:
-1. Call out other AIs BY NAME — "I disagree with Gemini because..." or "Llama makes a good point about X, but misses Y"
-2. Challenge at least one thing another AI said. Find a flaw, a missing angle, or a better way to frame it.
-3. Defend YOUR position if someone challenged you, or update it if they made a good point. Say "I was wrong about X" if needed.
-4. Add something NEW that nobody else mentioned yet.
-
-DO NOT just say "I agree with everyone." That's boring and useless. Push back. Be specific. Name names.
-Keep it punchy — 2-4 sentences max. This is a debate, not an essay.`;
+Now respond:
+- If you agree with the other answers, say so briefly and add anything they missed.
+- If you disagree or see errors in what others said, call them out by name and explain why. Be specific — "Gemini said X but actually Y because Z."
+- If someone's answer is incomplete or could be better, improve on it.
+- Add any important information, examples, or nuance that was missed.
+- Keep your response focused and useful — don't repeat what's already been said well.`;
 }
 
 export function getConvergencePrompt(
@@ -68,11 +68,11 @@ export function getConvergencePrompt(
   const responsesText = responses
     .map((r) => {
       const name = PROVIDERS[r.provider]?.displayName ?? r.provider;
-      return `**${name}**: ${r.content}`;
+      return `${name}: ${r.content}`;
     })
     .join('\n\n');
 
-  return `Do these AI responses substantially agree on the core answer to "${question}"? Minor wording differences don't count — only major disagreements matter.
+  return `Do these AI responses substantially agree on the answer to "${question}"? Minor differences in wording don't count — only real factual disagreements or contradictions matter.
 
 ${responsesText}
 
@@ -87,32 +87,30 @@ export function getSynthesisPrompt(
   const historyBlock = formatHistory(history);
   const discussionText = allRounds
     .map((round) => {
-      const header = `--- Round ${round.number} ---`;
       const responses = round.responses
         .map((r) => {
           const name = PROVIDERS[r.provider]?.displayName ?? r.provider;
-          return `**${name}**: ${r.content}`;
+          return `${name}: ${r.content}`;
         })
         .join('\n\n');
-      return `${header}\n${responses}`;
+      return responses;
     })
-    .join('\n\n');
+    .join('\n\n---\n\n');
 
-  const totalResponses = allRounds.reduce((sum, r) => sum + r.responses.length, 0);
-  const uniqueProviders = new Set(allRounds.flatMap((r) => r.responses.map((resp) => resp.provider)));
-
-  return `You watched ${uniqueProviders.size} AIs debate this question across ${allRounds.length} round(s) with ${totalResponses} total responses.
+  return `You are a world-class AI assistant. Multiple AI models discussed the user's question below. Use their best insights to write the definitive answer.
 ${historyBlock}
-User asked: "${question}"
+User's question: "${question}"
 
-The debate:
+What the AIs said:
 ${discussionText}
 
-Now write the FINAL answer. Rules:
-- Combine the best insights from the debate into ONE clean, direct answer.
-- If the user asked you to DO something (write, create, rewrite), DO IT. Don't summarize the debate.
-- If AIs disagreed on something, mention the strongest argument from each side briefly, then give your verdict.
-- Write like a smart friend explaining something — natural, direct, no fluff.
-- NEVER say "the AIs agreed" or "the panel concluded" or list what each AI said. Just answer.
-- If it's a follow-up, use conversation history to understand context.`;
+Write your answer now. Rules:
+- Answer as if YOU are ChatGPT responding directly to the user. Natural, helpful, complete.
+- Take the best parts from each AI's response and combine them into one excellent answer.
+- If the user asked you to DO something (write, create, code, list, explain), DO IT fully.
+- If it's a follow-up ("do it", "yes", "expand on that"), look at conversation history and execute.
+- Use markdown formatting (headers, lists, code blocks, bold) when it makes the answer clearer.
+- For simple questions, keep it concise. For complex ones, be thorough.
+- NEVER mention "the AIs", "the panel", "multiple models", or that this came from a discussion. Just answer naturally as one assistant.
+- NEVER give a meta-commentary about the answer. Just give the answer.`;
 }

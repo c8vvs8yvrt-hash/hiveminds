@@ -70,7 +70,7 @@ export async function callProvider(
   return fn(prompt, apiKey);
 }
 
-const PROVIDER_TIMEOUT_MS = 15000; // 15 second timeout (longer for vision)
+const PROVIDER_TIMEOUT_MS = 30000; // 30 second timeout for detailed responses
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([

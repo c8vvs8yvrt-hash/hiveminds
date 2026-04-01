@@ -34,7 +34,7 @@ export async function callGemini(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts }],
-        generationConfig: { maxOutputTokens: 512 },
+        generationConfig: { maxOutputTokens: 2048 },
       }),
     }
   );
