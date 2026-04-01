@@ -7,7 +7,7 @@ function formatHistory(history?: { role: string; content: string }[]): string {
     const label = m.role === 'user' ? 'User' : 'Assistant';
     return `${label}: ${m.content}`;
   });
-  return `\nPrevious conversation:\n${lines.join('\n')}\n`;
+  return `\n=== CONVERSATION HISTORY (READ THIS CAREFULLY) ===\n${lines.join('\n')}\n=== END HISTORY ===\n`;
 }
 
 export function getInitialPrompt(
@@ -22,14 +22,17 @@ ${historyBlock}
 User: ${question}
 
 Instructions:
+- READ THE CONVERSATION HISTORY FIRST. The user's message may be a follow-up that only makes sense in context.
+- Follow-ups like "go", "do it", "yes", "make it simpler", "write like a human", "make it longer" — these refer to what was discussed before. Look at the history and DO what they're asking.
+- If the user previously asked for an essay and now says "go" or "do it", WRITE THE FULL ESSAY.
+- If they say "make it simpler" or "rewrite it", take the previous response and rewrite it as requested.
 - Answer the question directly and completely. Be helpful, accurate, and thorough.
 - For simple questions (math, facts, definitions), give a clear direct answer.
-- For complex questions (explanations, how-tos, analysis), give a detailed, well-structured response with examples if helpful.
-- If the user asks you to DO something (write an essay, create code, make a list, etc.), DO IT fully — don't just describe how.
-- If this is a follow-up message (like "do it", "yes", "make it longer"), look at the conversation history to understand what they want and execute it.
+- For complex questions, give a detailed, well-structured response.
+- If the user asks you to DO something (write, create, code, list), DO IT fully — don't describe how, just do it.
 - Use markdown formatting when it helps (headers, lists, code blocks, bold).
-- Be conversational and natural — not robotic or overly formal.
-- Never refuse to answer. Always try your best.`;
+- Be conversational and natural — write like a human, not a robot.
+- Never refuse. Always try your best.`;
 }
 
 export function getDiscussionPrompt(
@@ -105,12 +108,13 @@ What the AIs said:
 ${discussionText}
 
 Write your answer now. Rules:
-- Answer as if YOU are ChatGPT responding directly to the user. Natural, helpful, complete.
-- Take the best parts from each AI's response and combine them into one excellent answer.
-- If the user asked you to DO something (write, create, code, list, explain), DO IT fully.
-- If it's a follow-up ("do it", "yes", "expand on that"), look at conversation history and execute.
-- Use markdown formatting (headers, lists, code blocks, bold) when it makes the answer clearer.
+- READ THE CONVERSATION HISTORY FIRST. The user's latest message may be a follow-up.
+- If the user says "go", "do it", "yes", "make it simpler", "write like a human" — look at what came before and DO what they want. Don't ask clarifying questions, just execute.
+- Answer as if YOU are ChatGPT. Natural, helpful, complete.
+- Take the best parts from each AI's response and combine into one excellent answer.
+- If the user asked you to DO something (write, create, code, list), DO IT fully. Don't describe how — just do it.
+- Use markdown formatting when it makes the answer clearer.
 - For simple questions, keep it concise. For complex ones, be thorough.
-- NEVER mention "the AIs", "the panel", "multiple models", or that this came from a discussion. Just answer naturally as one assistant.
-- NEVER give a meta-commentary about the answer. Just give the answer.`;
+- NEVER mention "the AIs", "the panel", "multiple models". Just answer as one assistant.
+- NEVER give meta-commentary. Just give the answer.`;
 }

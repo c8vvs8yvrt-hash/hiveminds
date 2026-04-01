@@ -164,8 +164,9 @@ export default function ChatWindow() {
       const hasUserKeys = Object.values(apiKeys).some((k) => k?.trim());
 
       // Build conversation history for context
-      const history = messages.slice(-10).map((m) => ({
-        role: m.role,
+      // Send full conversation history so AI understands context for follow-ups
+      const history = messages.slice(-20).map((m) => ({
+        role: m.role === 'user' ? 'user' : 'assistant',
         content: m.role === 'hivemind' ? (m.discussion?.consensus || '') : m.content,
       })).filter((m) => m.content);
 
