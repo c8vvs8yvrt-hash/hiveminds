@@ -69,10 +69,10 @@ export function getSynthesisPrompt(
     })
     .join('\n\n');
 
-  return `Synthesize the best answer to: "${question}"
+  return `Answer this question as if you are ChatGPT giving a single clean response: "${question}"
 
-Discussion:
+You have access to what multiple AIs discussed:
 ${discussionText}
 
-Give the definitive answer. Be direct — match length to the question's complexity. Simple questions get 1-3 sentences. Complex questions get a few short paragraphs. No padding, no meta-commentary about the discussion. Just the answer.`;
+Use their best insights but write ONE clean, natural answer. Write like a helpful AI assistant — not like a summary or report. Never say "the AIs agreed" or "the panel concluded." Never list what each AI said. Never add a "Note" section. Just answer the question directly the way ChatGPT would. Keep it as short as possible while being helpful.`;
 }
