@@ -1,4 +1,4 @@
-export type ProviderName = 'gemini' | 'groq' | 'mistral' | 'cohere' | 'openrouter';
+export type ProviderName = 'gemini' | 'groq' | 'mistral' | 'cohere' | 'openrouter' | 'openai';
 
 export interface ProviderConfig {
   name: ProviderName;
@@ -44,6 +44,7 @@ export interface UserApiKeys {
   mistral?: string;
   cohere?: string;
   openrouter?: string;
+  openai?: string;
 }
 
 export type DiscussionMode = 'instant' | 'thinking' | 'deep';

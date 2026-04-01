@@ -36,6 +36,13 @@ export const PROVIDERS: Record<string, ProviderConfig> = {
     emoji: '🔮',
     model: 'qwen/qwen3.6-plus-preview:free',
   },
+  openai: {
+    name: 'openai',
+    displayName: 'GPT-4o',
+    color: '#10A37F',
+    emoji: '🤖',
+    model: 'gpt-4o-mini',
+  },
 };
 
 export const TIER_LIMITS: Record<Tier, { daily?: number; monthly?: number }> = {
@@ -63,21 +70,21 @@ export const MODE_CONFIG: Record<DiscussionMode, {
   instant: {
     label: 'Instant',
     subtitle: 'For everyday questions',
-    providers: ['groq', 'gemini'],
+    providers: ['groq', 'openai'],
     maxRounds: 1,
     requiresPro: false,
   },
   thinking: {
     label: 'Thinking',
     subtitle: 'For complex questions',
-    providers: ['gemini', 'groq', 'cohere', 'openrouter'],
+    providers: ['openai', 'gemini', 'groq', 'cohere', 'openrouter'],
     maxRounds: 3,
     requiresPro: false,
   },
   deep: {
     label: 'Deep',
     subtitle: 'For research-grade answers',
-    providers: ['gemini', 'groq', 'cohere', 'openrouter'],
+    providers: ['openai', 'gemini', 'groq', 'cohere', 'openrouter'],
     maxRounds: 5,
     requiresPro: true,
   },

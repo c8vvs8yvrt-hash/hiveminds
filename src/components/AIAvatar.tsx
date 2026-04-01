@@ -13,7 +13,8 @@ const PROVIDER_ICONS: Record<ProviderName, string> = {
   groq: '🦙',
   mistral: '🌬️',
   cohere: '🧠',
-  openrouter: '🔍',
+  openrouter: '🔮',
+  openai: '🤖',
 };
 
 export default function AIAvatar({ provider, size = 'md' }: AIAvatarProps) {

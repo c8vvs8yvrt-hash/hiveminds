@@ -4,6 +4,7 @@ import { callGroq } from './groq';
 import { callMistral } from './mistral';
 import { callCohere } from './cohere';
 import { callOpenRouter } from './openrouter';
+import { callOpenAI } from './openai';
 import { getDemoResponse } from './demo';
 
 type ProviderFn = (prompt: string, apiKey?: string) => Promise<string>;
@@ -14,6 +15,7 @@ const PROVIDER_FUNCTIONS: Record<ProviderName, ProviderFn> = {
   mistral: callMistral,
   cohere: callCohere,
   openrouter: callOpenRouter,
+  openai: callOpenAI,
 };
 
 const ENV_KEY_MAP: Record<ProviderName, string> = {
@@ -22,6 +24,7 @@ const ENV_KEY_MAP: Record<ProviderName, string> = {
   mistral: 'MISTRAL_API_KEY',
   cohere: 'COHERE_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
+  openai: 'OPENAI_API_KEY',
 };
 
 export function getAvailableProviders(
@@ -34,7 +37,7 @@ export function getAvailableProviders(
   }
 
   const available: ProviderName[] = [];
-  const allProviders: ProviderName[] = ['gemini', 'groq', 'mistral', 'cohere', 'openrouter'];
+  const allProviders: ProviderName[] = ['gemini', 'groq', 'mistral', 'cohere', 'openrouter', 'openai'];
 
   for (const provider of allProviders) {
     const userKey = userApiKeys?.[provider as keyof UserApiKeys];
