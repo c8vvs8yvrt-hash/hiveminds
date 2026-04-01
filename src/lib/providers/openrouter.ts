@@ -19,7 +19,7 @@ export async function callOpenRouter(
     },
     body: JSON.stringify({
       model: 'qwen/qwen3.6-plus-preview:free',
-      max_tokens: 1024,
+      max_tokens: 512,
       messages: [{ role: 'user', content: prompt }],
     }),
   });

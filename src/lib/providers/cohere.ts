@@ -18,7 +18,7 @@ export async function callCohere(
     body: JSON.stringify({
       model: 'command-a-03-2025',
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1024,
+      max_tokens: 512,
     }),
   });
 
