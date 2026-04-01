@@ -4,7 +4,7 @@ import { callAllProviders, getAvailableProviders } from './providers';
 import { getInitialPrompt, getDiscussionPrompt } from './prompts';
 import { checkConvergence } from './convergence';
 import { synthesizeConsensus } from './synthesize';
-import { DEMO_CONSENSUS, getDemoResponse } from './providers/demo';
+import { getDemoConsensus, getDemoResponse } from './providers/demo';
 
 export interface RoundtableCallbacks {
   onRoundStart: (round: number) => void;
@@ -28,14 +28,14 @@ async function runDemoRoundtable(
     // Round 1
     callbacks.onRoundStart(1);
     for (const provider of providers) {
-      const content = await getDemoResponse(provider, 1);
+      const content = await getDemoResponse(provider, 1, question);
       callbacks.onAIResponse({ provider, content, round: 1, timestamp: Date.now() });
     }
 
     // Round 2
     callbacks.onRoundStart(2);
     for (const provider of providers) {
-      const content = await getDemoResponse(provider, 2);
+      const content = await getDemoResponse(provider, 2, question);
       callbacks.onAIResponse({ provider, content, round: 2, timestamp: Date.now() });
     }
 
@@ -44,7 +44,7 @@ async function runDemoRoundtable(
 
     // Synthesis
     await new Promise((resolve) => setTimeout(resolve, 1200));
-    callbacks.onConsensus(DEMO_CONSENSUS);
+    callbacks.onConsensus(getDemoConsensus(question));
   } catch (error) {
     callbacks.onError(error instanceof Error ? error.message : 'Demo error');
   }

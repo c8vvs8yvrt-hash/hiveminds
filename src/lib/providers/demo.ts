@@ -1,51 +1,78 @@
 import { ProviderName } from '@/types';
 
-const DEMO_ROUND1: Record<string, string> = {
-  gemini: "Great question! From my analysis, the most important factor here is practical application. You can study theory all day, but real understanding comes from hands-on experience. I'd recommend starting with small, manageable projects and gradually increasing complexity. The data shows that people who learn by doing retain 75% more than those who only read about it.",
-  groq: "Honestly? The biggest mistake people make is overthinking this. Just start doing it. The 'perfect' approach doesn't exist — what works is consistency and willingness to fail. That said, having a mentor or community helps enormously. Don't try to go it alone when there are tons of people who've already figured out the hard parts.",
-  mistral: "That's a great question! Let me break it down with a structured approach. Based on current research and practical experience, here are the key considerations you should keep in mind. First, it's important to understand the fundamentals before diving into specifics. The most effective strategy combines theoretical knowledge with hands-on practice.",
-  cohere: "I'd approach this by first considering what your specific goals are, as the best path forward depends heavily on context. That said, there are some universal principles: start with fundamentals, build progressively, seek feedback, and iterate. The most successful approach I've seen combines structured learning with creative exploration.",
-  openrouter: "Based on recent research and expert opinions, the most effective approach involves a blend of structured learning and practical application. Studies show that active recall and spaced repetition significantly improve retention. I'd also recommend leveraging current tools and resources — there are more high-quality free resources available now than ever before.",
-};
-
-const DEMO_ROUND2: Record<string, string> = {
-  gemini: "Mistral makes a fair point about theory — I'll concede that some foundational knowledge is necessary before jumping in. But I stand by my emphasis on practical learning. Building on what Llama said about mistakes, I think making mistakes early is actually beneficial — it accelerates learning. The consensus seems to be: get enough theory to be dangerous, then start building.",
-  groq: "Alright, I'll give Mistral and Gemini credit — some structure helps. My initial take was maybe too casual. The sweet spot is probably what we're all converging on: a balance of structured learning and practical experimentation. I especially like Gemini's point about small projects. Start small, fail fast, iterate. That's the real answer here.",
-  mistral: "I agree with Gemini's point about practical application — that's crucial. However, I'd add that having a solid conceptual foundation first makes the practical work much more efficient. Llama raises a valid concern about common pitfalls, and I think the best approach combines all our perspectives: learn the theory, practice early, and stay aware of common mistakes.",
-  cohere: "The discussion has been really productive. I think we're converging on a clear answer: combine theoretical foundations (as Mistral emphasized) with practical, project-based learning (as Gemini and Llama advocated). The key insight from this roundtable is that these approaches aren't competing — they're complementary.",
-  openrouter: "I agree with the emerging consensus. The research supports what everyone is saying: structured fundamentals + hands-on practice + community support is the winning formula. One additional data point: people who set specific, measurable goals are 42% more likely to succeed. So whatever approach you choose, make sure you define clear milestones.",
-};
-
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Generate a question-aware demo response.
+ * These simulate what a real AI roundtable would look like.
+ */
 export async function getDemoResponse(
   provider: ProviderName,
   round: number,
+  question: string,
 ): Promise<string> {
-  // Simulate network delay (1-3 seconds)
-  const delayMs = 1000 + Math.random() * 2000;
+  // Simulate network delay (0.5-1.5 seconds)
+  const delayMs = 500 + Math.random() * 1000;
   await delay(delayMs);
 
+  const q = question.trim();
+
   if (round === 1) {
-    return DEMO_ROUND1[provider] ?? "I have some thoughts on this topic that I'd like to share with the group.";
+    return getRound1Response(provider, q);
   }
-  return DEMO_ROUND2[provider] ?? "I agree with the points raised by the other participants. The consensus approach seems sound.";
+  return getRound2Response(provider, q);
 }
 
-export const DEMO_CONSENSUS = `Based on the roundtable discussion, here's the best approach:
+function getRound1Response(provider: ProviderName, question: string): string {
+  const responses: Record<string, string> = {
+    gemini: `Looking at "${question}" — this is a great topic to explore. From my analysis, the key factors to consider are the context, the practical implications, and the evidence available. I'd approach this by first breaking down the core concepts, then examining how they apply in real-world scenarios. The data suggests that a nuanced understanding is essential here, as oversimplified answers tend to miss critical details.`,
 
-**Start with a foundation, then build through practice.**
+    groq: `Regarding "${question}" — let me be straightforward here. The most important thing people overlook is that there's rarely one right answer. It depends heavily on your specific situation and goals. That said, I think the best starting point is to understand the fundamentals clearly before making any decisions. Common mistakes include jumping to conclusions without considering all the angles.`,
 
-1. **Learn the fundamentals first** — Get enough theoretical knowledge to understand the basics. Don't try to master everything upfront, just enough to get started.
+    mistral: `That's an excellent question: "${question}". Let me provide a structured analysis. There are several dimensions to consider here. First, the theoretical framework — what does established knowledge tell us? Second, the practical application — how does this play out in reality? And third, the personal context — what matters most for your specific situation? I believe a comprehensive answer needs to address all three.`,
 
-2. **Start building immediately** — Small, manageable projects are the key. The research shows that hands-on learners retain 75% more than passive learners.
+    cohere: `Regarding "${question}" — I think context is everything here. The answer varies significantly depending on your goals, your current situation, and what trade-offs you're willing to make. That said, there are some universal principles worth considering: look at the evidence, consider multiple perspectives, and don't be afraid to question conventional wisdom. Let me elaborate on each of these.`,
 
-3. **Embrace failure** — Making mistakes early actually accelerates learning. Don't aim for perfection; aim for progress.
+    openrouter: `"${question}" is something I've analyzed extensively. Based on current research and expert consensus, there are a few key insights worth highlighting. The landscape has evolved significantly in recent years, and what was true even a few years ago may not apply today. I'd recommend focusing on the most up-to-date information and being wary of outdated advice. Here's what the latest evidence suggests.`,
+  };
 
-4. **Find a community** — Having mentors and peers to learn from makes a huge difference. Don't go it alone.
+  return responses[provider] ?? `That's an interesting question about "${question}". Let me share my perspective with the group.`;
+}
 
-5. **Set clear goals** — People who define specific milestones are 42% more likely to succeed.
+function getRound2Response(provider: ProviderName, question: string): string {
+  const responses: Record<string, string> = {
+    gemini: `Building on what everyone has said about "${question}" — I think Mistral's structured approach is really valuable here, and I agree with Llama about the importance of not oversimplifying. Where I'd push back slightly is on the idea that context is everything (as Cohere suggested). While context matters, there ARE some universal truths here that apply broadly. I think we're converging on a solid answer.`,
 
-The AIs unanimously agreed that the best results come from combining structured learning with practical experimentation — these approaches complement each other rather than competing.`;
+    groq: `Good discussion so far on "${question}". I'll admit Gemini and Mistral raised points I hadn't fully considered. The structured approach combined with practical experience does seem to be the winning formula. I still think simplicity is underrated — don't overcomplicate this — but I see the value in being more thorough. DeepSeek's point about recent changes is well-taken too.`,
+
+    mistral: `I appreciate the thoughtful responses from everyone on "${question}". Gemini's emphasis on evidence-based thinking aligns with my structured approach. I also think Llama makes a fair point about avoiding overthinking. The consensus seems clear: understand the fundamentals, apply them practically, and stay current. Cohere's emphasis on multiple perspectives rounds this out nicely.`,
+
+    cohere: `This has been a productive discussion about "${question}". I notice we're all arriving at similar conclusions from different angles, which gives me confidence in the answer. The key themes emerging are: evidence-based thinking (Gemini), practical simplicity (Llama), structured analysis (Mistral), and staying current (DeepSeek). These aren't competing approaches — they're complementary.`,
+
+    openrouter: `I agree with the emerging consensus on "${question}". Everyone has brought valuable perspectives. The research supports this multi-faceted approach: combine solid fundamentals with practical application, stay updated with current developments, and don't be afraid to adapt your thinking. I think we've reached a well-rounded answer that covers the key bases.`,
+  };
+
+  return responses[provider] ?? `I agree with the points raised about "${question}". The consensus approach seems sound.`;
+}
+
+export function getDemoConsensus(question: string): string {
+  return `Regarding **"${question}"**, here's what the AI roundtable concluded:
+
+The panel discussed this from multiple angles and reached a strong consensus on the key points:
+
+1. **Understand the fundamentals first** — Before diving into specifics, it's essential to grasp the core concepts. A solid foundation makes everything else more effective.
+
+2. **Context matters significantly** — The best answer depends on your specific situation, goals, and constraints. There's rarely a one-size-fits-all solution.
+
+3. **Look at the evidence** — Base your understanding on current, reliable information rather than assumptions or outdated conventional wisdom.
+
+4. **Consider multiple perspectives** — Different viewpoints often reveal insights that a single perspective would miss. The most robust answers integrate diverse approaches.
+
+5. **Apply practically** — Knowledge without application has limited value. Test your understanding through real-world experience and iterate based on results.
+
+The AIs agreed that the best approach combines structured thinking with practical application — and that staying open to new information is crucial as understanding evolves.
+
+*To get detailed, question-specific answers powered by real AI models, add your free API keys in Settings (⚙️) or upgrade to Pro.*`;
+}
