@@ -84,7 +84,8 @@ export async function callAllProviders(
       try {
         let content: string;
         if (demoMode) {
-          content = await getDemoResponse(provider, round);
+          const q = typeof prompt === 'function' ? prompt(provider) : prompt;
+          content = await getDemoResponse(provider, round, q);
         } else {
           const p = typeof prompt === 'function' ? prompt(provider) : prompt;
           content = await callProvider(provider, p, userApiKeys);
