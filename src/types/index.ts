@@ -45,6 +45,8 @@ export interface UserApiKeys {
   openrouter?: string;
 }
 
+export type DiscussionMode = 'instant' | 'thinking' | 'deep';
+
 export type Tier = 'FREE' | 'PRO' | 'MAX';
 
 export interface UsageInfo {

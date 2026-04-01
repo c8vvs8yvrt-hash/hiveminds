@@ -1,9 +1,10 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys } from '@/types';
+import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, DiscussionMode } from '@/types';
 import ConsensusMessage from './ConsensusMessage';
 import MessageInput from './MessageInput';
+import ModeSelector from './ModeSelector';
 import { Settings } from 'lucide-react';
 
 export default function ChatWindow() {
@@ -11,28 +12,41 @@ export default function ChatWindow() {
   const [isLoading, setIsLoading] = useState(false);
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [apiKeys, setApiKeys] = useState<UserApiKeys>({});
+  const [mode, setMode] = useState<DiscussionMode>('instant');
+  const [autoSwitch, setAutoSwitch] = useState(true);
+  const [upgradedPill, setUpgradedPill] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Load API keys from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('hiveminds_apikeys');
     if (stored) {
-      try {
-        setApiKeys(JSON.parse(stored));
-      } catch { /* ignore */ }
+      try { setApiKeys(JSON.parse(stored)); } catch { /* ignore */ }
     }
+    const savedMode = localStorage.getItem('hiveminds_mode') as DiscussionMode | null;
+    if (savedMode) setMode(savedMode);
+    const savedAutoSwitch = localStorage.getItem('hiveminds_autoswitch');
+    if (savedAutoSwitch !== null) setAutoSwitch(savedAutoSwitch === 'true');
   }, []);
+
+  const handleModeChange = (newMode: DiscussionMode) => {
+    setMode(newMode);
+    localStorage.setItem('hiveminds_mode', newMode);
+  };
+
+  const handleAutoSwitchChange = (enabled: boolean) => {
+    setAutoSwitch(enabled);
+    localStorage.setItem('hiveminds_autoswitch', String(enabled));
+  };
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages, scrollToBottom]);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
   const handleSend = async (message: string) => {
-    // Add user message
+    setUpgradedPill(false);
+
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -68,13 +82,13 @@ export default function ChatWindow() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message,
+          mode,
+          autoSwitch,
           ...(hasUserKeys ? { apiKeys } : {}),
         }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to start discussion');
-      }
+      if (!response.ok) throw new Error('Failed to start discussion');
 
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
@@ -88,9 +102,8 @@ export default function ChatWindow() {
 
         buffer += decoder.decode(value, { stream: true });
 
-        // Parse SSE events from buffer
         const events = buffer.split('\n\n');
-        buffer = events.pop() || ''; // Keep incomplete event in buffer
+        buffer = events.pop() || '';
 
         for (const eventStr of events) {
           if (!eventStr.trim()) continue;
@@ -107,6 +120,15 @@ export default function ChatWindow() {
           if (!eventType || !eventData) continue;
 
           const data = JSON.parse(eventData);
+
+          // Handle mode event (auto-upgrade notification)
+          if (eventType === 'mode') {
+            if (data.wasUpgraded) {
+              setUpgradedPill(true);
+              setTimeout(() => setUpgradedPill(false), 4000);
+            }
+            continue;
+          }
 
           setMessages((prev) => {
             const updated = [...prev];
@@ -134,9 +156,7 @@ export default function ChatWindow() {
                 const roundIdx = disc.rounds.findIndex((r) => r.number === resp.round);
                 if (roundIdx >= 0) {
                   disc.rounds = disc.rounds.map((r, i) =>
-                    i === roundIdx
-                      ? { ...r, responses: [...r.responses, resp] }
-                      : r
+                    i === roundIdx ? { ...r, responses: [...r.responses, resp] } : r
                   );
                 }
                 break;
@@ -154,7 +174,7 @@ export default function ChatWindow() {
                 break;
               }
               case 'error': {
-                disc.consensus = `⚠️ Error: ${data.message}`;
+                disc.consensus = `Error: ${data.message}`;
                 disc.status = 'error';
                 break;
               }
@@ -174,7 +194,7 @@ export default function ChatWindow() {
             ...lastMsg,
             discussion: {
               ...lastMsg.discussion,
-              consensus: `⚠️ Error: ${error instanceof Error ? error.message : 'Something went wrong'}`,
+              consensus: `Error: ${error instanceof Error ? error.message : 'Something went wrong'}`,
               status: 'error',
             },
           };
@@ -197,9 +217,18 @@ export default function ChatWindow() {
       {/* Header */}
       <header className="border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-sm px-4 py-3">
         <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">🐝</span>
-            <h1 className="text-base font-semibold text-zinc-200">HiveMinds</h1>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🐝</span>
+              <h1 className="text-base font-semibold text-zinc-200">HiveMinds</h1>
+            </div>
+            <div className="h-4 w-px bg-zinc-700" />
+            <ModeSelector
+              mode={mode}
+              onModeChange={handleModeChange}
+              autoSwitch={autoSwitch}
+              onAutoSwitchChange={handleAutoSwitchChange}
+            />
           </div>
           <button
             onClick={() => setShowApiKeyModal(true)}
@@ -209,6 +238,15 @@ export default function ChatWindow() {
           </button>
         </div>
       </header>
+
+      {/* Upgraded pill notification */}
+      {upgradedPill && (
+        <div className="flex justify-center py-2">
+          <span className="text-xs bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-medium animate-pulse">
+            Upgraded to Thinking
+          </span>
+        </div>
+      )}
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
@@ -263,7 +301,6 @@ export default function ChatWindow() {
   );
 }
 
-// === API Key Modal ===
 function ApiKeyModal({
   keys,
   onSave,
@@ -280,7 +317,7 @@ function ApiKeyModal({
     { key: 'groq', label: 'Groq / Llama (free)', placeholder: 'gsk_...' },
     { key: 'mistral', label: 'Mistral (free)', placeholder: 'sk-...' },
     { key: 'cohere', label: 'Cohere (free)', placeholder: 'co-...' },
-    { key: 'openrouter', label: 'OpenRouter / DeepSeek (free)', placeholder: 'sk-or-...' },
+    { key: 'openrouter', label: 'OpenRouter / Qwen (free)', placeholder: 'sk-or-...' },
   ];
 
   return (
@@ -294,9 +331,7 @@ function ApiKeyModal({
         <div className="space-y-3">
           {fields.map(({ key, label, placeholder }) => (
             <div key={key}>
-              <label className="text-xs font-medium text-zinc-400 mb-1 block">
-                {label}
-              </label>
+              <label className="text-xs font-medium text-zinc-400 mb-1 block">{label}</label>
               <input
                 type="password"
                 value={form[key] || ''}

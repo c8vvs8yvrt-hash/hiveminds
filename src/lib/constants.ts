@@ -1,4 +1,4 @@
-import { ProviderConfig, Tier } from '@/types';
+import { ProviderConfig, ProviderName, DiscussionMode, Tier } from '@/types';
 
 export const PROVIDERS: Record<string, ProviderConfig> = {
   gemini: {
@@ -52,3 +52,33 @@ export const PRICING = {
 
 export const MAX_ROUNDS = 4;
 export const MIN_PROVIDERS_FOR_DISCUSSION = 2;
+
+export const MODE_CONFIG: Record<DiscussionMode, {
+  label: string;
+  subtitle: string;
+  providers: ProviderName[];
+  maxRounds: number;
+  requiresPro: boolean;
+}> = {
+  instant: {
+    label: 'Instant',
+    subtitle: 'For everyday questions',
+    providers: ['groq', 'gemini'],
+    maxRounds: 1,
+    requiresPro: false,
+  },
+  thinking: {
+    label: 'Thinking',
+    subtitle: 'For complex questions',
+    providers: ['gemini', 'groq', 'cohere', 'openrouter'],
+    maxRounds: 3,
+    requiresPro: false,
+  },
+  deep: {
+    label: 'Deep',
+    subtitle: 'For research-grade answers',
+    providers: ['gemini', 'groq', 'cohere', 'openrouter'],
+    maxRounds: 5,
+    requiresPro: true,
+  },
+};

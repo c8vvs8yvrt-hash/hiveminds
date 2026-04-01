@@ -1,16 +1,19 @@
 import { NextRequest } from 'next/server';
 import { runRoundtable } from '@/lib/roundtable';
-import { UserApiKeys } from '@/types';
+import { UserApiKeys, DiscussionMode } from '@/types';
+import { getEffectiveMode } from '@/lib/complexity';
 
 export const runtime = 'nodejs';
-export const maxDuration = 120; // Allow up to 2 minutes for multi-round discussions
+export const maxDuration = 120;
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { message, apiKeys } = body as {
+    const { message, apiKeys, mode: requestedMode = 'instant', autoSwitch = true } = body as {
       message: string;
       apiKeys?: UserApiKeys;
+      mode?: DiscussionMode;
+      autoSwitch?: boolean;
     };
 
     if (!message?.trim()) {
@@ -20,11 +23,9 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // TODO: Check auth + usage limits here once NextAuth/Prisma are wired up
-    // For now, determine if paid based on whether server keys exist
-    const isPaid = !apiKeys; // If no user keys sent, assume using server keys
+    const isPaid = !apiKeys;
+    const { mode, wasUpgraded } = getEffectiveMode(requestedMode, message, autoSwitch);
 
-    // Create SSE stream
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       async start(controller) {
@@ -33,27 +34,20 @@ export async function POST(req: NextRequest) {
           controller.enqueue(encoder.encode(event));
         }
 
+        // Tell client which mode is active and if it was auto-upgraded
+        sendEvent('mode', { mode, wasUpgraded });
+
         await runRoundtable(message, {
-          onRoundStart: (round) => {
-            sendEvent('round_start', { round });
-          },
-          onAIResponse: (response) => {
-            sendEvent('ai_response', {
-              round: response.round,
-              provider: response.provider,
-              content: response.content,
-              timestamp: response.timestamp,
-            });
-          },
-          onConvergence: (agreed, round) => {
-            sendEvent('convergence', { agreed, round });
-          },
-          onConsensus: (content) => {
-            sendEvent('consensus', { content });
-          },
-          onError: (error) => {
-            sendEvent('error', { message: error });
-          },
+          onRoundStart: (round) => sendEvent('round_start', { round }),
+          onAIResponse: (response) => sendEvent('ai_response', {
+            round: response.round,
+            provider: response.provider,
+            content: response.content,
+            timestamp: response.timestamp,
+          }),
+          onConvergence: (agreed, round) => sendEvent('convergence', { agreed, round }),
+          onConsensus: (content) => sendEvent('consensus', { content }),
+          onError: (error) => sendEvent('error', { message: error }),
           onDone: () => {
             sendEvent('done', {});
             controller.close();
@@ -61,6 +55,7 @@ export async function POST(req: NextRequest) {
         }, {
           userApiKeys: apiKeys,
           isPaid,
+          mode,
         });
       },
     });
