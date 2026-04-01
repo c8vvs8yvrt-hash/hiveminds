@@ -63,12 +63,14 @@ export async function POST(req: NextRequest) {
       mode: requestedMode = 'instant',
       autoSwitch = true,
       attachments,
+      history,
     } = body as {
       message: string;
       apiKeys?: UserApiKeys;
       mode?: DiscussionMode;
       autoSwitch?: boolean;
       attachments?: Attachment[];
+      history?: { role: string; content: string }[];
     };
 
     if (!message?.trim() && (!attachments || attachments.length === 0)) {
@@ -117,6 +119,7 @@ export async function POST(req: NextRequest) {
           isPaid,
           mode,
           images,
+          history,
         });
       },
     });

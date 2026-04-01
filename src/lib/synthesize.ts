@@ -9,9 +9,10 @@ import { getSynthesisPrompt } from './prompts';
 export async function synthesizeConsensus(
   question: string,
   rounds: Round[],
-  userApiKeys?: UserApiKeys
+  userApiKeys?: UserApiKeys,
+  history?: { role: string; content: string }[]
 ): Promise<string> {
-  const prompt = getSynthesisPrompt(question, rounds);
+  const prompt = getSynthesisPrompt(question, rounds, history);
 
   const synthesizers = ['groq', 'gemini', 'mistral'] as const;
 

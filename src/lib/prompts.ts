@@ -1,13 +1,30 @@
 import { AIResponse } from '@/types';
 import { PROVIDERS } from './constants';
 
-export function getInitialPrompt(providerName: string, question: string): string {
+function formatHistory(history?: { role: string; content: string }[]): string {
+  if (!history || history.length === 0) return '';
+  const lines = history.map((m) => {
+    const label = m.role === 'user' ? 'User' : 'HiveMinds';
+    return `${label}: ${m.content}`;
+  });
+  return `\n\nConversation so far:\n${lines.join('\n')}\n`;
+}
+
+export function getInitialPrompt(
+  providerName: string,
+  question: string,
+  history?: { role: string; content: string }[]
+): string {
   const display = PROVIDERS[providerName]?.displayName ?? providerName;
-  return `You are ${display} in a roundtable discussion with other AIs (GPT-4o, Gemini, Llama, Cohere, Qwen). A user asked:
+  const historyBlock = formatHistory(history);
+  return `You are ${display} in a roundtable discussion with other AIs. ${historyBlock}
+The user's latest message: "${question}"
 
-"${question}"
-
-Answer directly and concisely. Match your answer length to the question's complexity — simple questions get short answers. No filler, no over-explaining. 1-3 sentences for simple questions, 1-2 short paragraphs max for complex ones.`;
+IMPORTANT RULES:
+- If the user asks you to DO something (write, rewrite, create, fix, expand, etc.), DO IT. Don't explain how — just do the task.
+- If it's a follow-up like "do it", "yes", "go ahead", "make it longer", look at the conversation history to understand what they want and do it.
+- Answer directly. Match length to complexity. Simple questions = 1-3 sentences. Complex tasks = as long as needed.
+- Never say "I can't do that" — just do your best.`;
 }
 
 export function getDiscussionPrompt(
@@ -54,8 +71,10 @@ Reply with ONLY "YES" or "NO".`;
 
 export function getSynthesisPrompt(
   question: string,
-  allRounds: { number: number; responses: AIResponse[] }[]
+  allRounds: { number: number; responses: AIResponse[] }[],
+  history?: { role: string; content: string }[]
 ): string {
+  const historyBlock = formatHistory(history);
   const discussionText = allRounds
     .map((round) => {
       const header = `--- Round ${round.number} ---`;
@@ -69,10 +88,17 @@ export function getSynthesisPrompt(
     })
     .join('\n\n');
 
-  return `Answer this question as if you are ChatGPT giving a single clean response: "${question}"
+  return `Answer this question as if you are ChatGPT giving a single clean response. ${historyBlock}
+The user's latest message: "${question}"
 
 You have access to what multiple AIs discussed:
 ${discussionText}
 
-Use their best insights but write ONE clean, natural answer. Write like a helpful AI assistant — not like a summary or report. Never say "the AIs agreed" or "the panel concluded." Never list what each AI said. Never add a "Note" section. Just answer the question directly the way ChatGPT would. Keep it as short as possible while being helpful.`;
+RULES:
+- Use their best insights but write ONE clean, natural answer.
+- If the user asked you to DO something (write, rewrite, create, expand, etc.), DO THE TASK directly. Don't give advice about how to do it.
+- If it's a follow-up like "just do it" or "yes", look at the conversation history and complete the task they're referring to.
+- Write like a helpful AI assistant — not like a summary or report.
+- Never say "the AIs agreed" or "the panel concluded." Never list what each AI said.
+- Just answer the question or do the task directly.`;
 }

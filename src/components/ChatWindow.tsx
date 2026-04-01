@@ -78,6 +78,12 @@ export default function ChatWindow() {
     try {
       const hasUserKeys = Object.values(apiKeys).some((k) => k?.trim());
 
+      // Build conversation history for context (last 10 messages)
+      const history = messages.slice(-10).map((m) => ({
+        role: m.role,
+        content: m.role === 'hivemind' ? (m.discussion?.consensus || '') : m.content,
+      })).filter((m) => m.content);
+
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -85,6 +91,7 @@ export default function ChatWindow() {
           message,
           mode,
           autoSwitch,
+          history,
           ...(hasUserKeys ? { apiKeys } : {}),
           ...(attachments ? { attachments } : {}),
         }),

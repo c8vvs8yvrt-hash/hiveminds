@@ -43,9 +43,10 @@ export async function runRoundtable(
     isPaid?: boolean;
     mode?: DiscussionMode;
     images?: { data: string; mimeType: string }[];
+    history?: { role: string; content: string }[];
   } = {}
 ): Promise<void> {
-  const { userApiKeys, isPaid = false, mode = 'instant', images } = options;
+  const { userApiKeys, isPaid = false, mode = 'instant', images, history } = options;
   const config = MODE_CONFIG[mode];
 
   // Filter to available providers from the mode's list
@@ -63,7 +64,7 @@ export async function runRoundtable(
     callbacks.onRoundStart(1);
     const round1Responses = await callAllProviders(
       providers,
-      (provider) => getInitialPrompt(provider, question),
+      (provider) => getInitialPrompt(provider, question, history),
       1,
       userApiKeys,
       callbacks.onAIResponse,
@@ -87,7 +88,7 @@ export async function runRoundtable(
         consensus = round1Responses[0].content;
       } else {
         try {
-          consensus = await synthesizeConsensus(question, allRounds, userApiKeys);
+          consensus = await synthesizeConsensus(question, allRounds, userApiKeys, history);
         } catch {
           consensus = round1Responses.map((r) => r.content).join('\n\n');
         }
@@ -131,7 +132,7 @@ export async function runRoundtable(
     // === FINAL SYNTHESIS ===
     let consensus: string;
     try {
-      consensus = await synthesizeConsensus(question, allRounds, userApiKeys);
+      consensus = await synthesizeConsensus(question, allRounds, userApiKeys, history);
     } catch {
       const lastRound = allRounds[allRounds.length - 1];
       consensus = lastRound.responses.map((r) => r.content).join('\n\n');
