@@ -449,7 +449,7 @@ export default function ChatWindow() {
                 <h2 className="text-xl font-medium text-zinc-300 mb-1">
                   What can I help with?
                 </h2>
-                <p className="text-sm text-zinc-500">5 AIs will debate your question</p>
+                <p className="text-sm text-zinc-500">Multiple AI minds, one powerful answer</p>
               </div>
             )}
 
