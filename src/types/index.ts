@@ -34,6 +34,7 @@ export interface ChatMessage {
   role: 'user' | 'hivemind';
   content: string;
   discussion?: Discussion;
+  attachments?: Attachment[];
   timestamp: number;
 }
 
@@ -46,6 +47,16 @@ export interface UserApiKeys {
 }
 
 export type DiscussionMode = 'instant' | 'thinking' | 'deep';
+
+export interface Attachment {
+  type: 'image' | 'url';
+  /** base64 data URL for images, or the URL string for links */
+  data: string;
+  /** Original filename or URL for display */
+  name: string;
+  /** MIME type for images */
+  mimeType?: string;
+}
 
 export type Tier = 'FREE' | 'PRO' | 'MAX';
 

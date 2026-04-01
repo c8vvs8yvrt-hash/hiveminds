@@ -42,9 +42,10 @@ export async function runRoundtable(
     userApiKeys?: UserApiKeys;
     isPaid?: boolean;
     mode?: DiscussionMode;
+    images?: { data: string; mimeType: string }[];
   } = {}
 ): Promise<void> {
-  const { userApiKeys, isPaid = false, mode = 'instant' } = options;
+  const { userApiKeys, isPaid = false, mode = 'instant', images } = options;
   const config = MODE_CONFIG[mode];
 
   // Filter to available providers from the mode's list
@@ -65,7 +66,9 @@ export async function runRoundtable(
       (provider) => getInitialPrompt(provider, question),
       1,
       userApiKeys,
-      callbacks.onAIResponse
+      callbacks.onAIResponse,
+      false,
+      images
     );
 
     if (round1Responses.length < MIN_PROVIDERS_FOR_DISCUSSION) {

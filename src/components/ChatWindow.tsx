@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, DiscussionMode } from '@/types';
+import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, DiscussionMode, Attachment } from '@/types';
 import ConsensusMessage from './ConsensusMessage';
 import MessageInput from './MessageInput';
 import ModeSelector from './ModeSelector';
@@ -44,13 +44,14 @@ export default function ChatWindow() {
 
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
-  const handleSend = async (message: string) => {
+  const handleSend = async (message: string, attachments?: Attachment[]) => {
     setUpgradedPill(false);
 
     const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'user',
       content: message,
+      attachments,
       timestamp: Date.now(),
     };
 
@@ -85,6 +86,7 @@ export default function ChatWindow() {
           mode,
           autoSwitch,
           ...(hasUserKeys ? { apiKeys } : {}),
+          ...(attachments ? { attachments } : {}),
         }),
       });
 
@@ -265,7 +267,14 @@ export default function ChatWindow() {
               {msg.role === 'user' ? (
                 <div className="flex justify-end">
                   <div className="bg-zinc-800 text-zinc-100 rounded-2xl px-4 py-3 max-w-[85%]">
-                    <p className="text-sm leading-relaxed">{msg.content}</p>
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <div className="flex gap-2 mb-2 flex-wrap">
+                        {msg.attachments.filter(a => a.type === 'image').map((att, i) => (
+                          <img key={i} src={att.data} alt={att.name} className="max-h-32 rounded-lg" />
+                        ))}
+                      </div>
+                    )}
+                    {msg.content && <p className="text-sm leading-relaxed">{msg.content}</p>}
                   </div>
                 </div>
               ) : (

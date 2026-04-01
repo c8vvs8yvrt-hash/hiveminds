@@ -24,9 +24,6 @@ const ENV_KEY_MAP: Record<ProviderName, string> = {
   openrouter: 'OPENROUTER_API_KEY',
 };
 
-/**
- * Determines which providers are available based on API keys.
- */
 export function getAvailableProviders(
   userApiKeys?: UserApiKeys,
   isPaid: boolean = false,
@@ -41,11 +38,9 @@ export function getAvailableProviders(
 
   for (const provider of allProviders) {
     const userKey = userApiKeys?.[provider as keyof UserApiKeys];
-
     if (userKey) {
       available.push(provider);
     } else if (isPaid || !userApiKeys) {
-      // Check server env vars
       if (process.env[ENV_KEY_MAP[provider]]) {
         available.push(provider);
       }
@@ -55,20 +50,24 @@ export function getAvailableProviders(
   return available;
 }
 
-/**
- * Call a single provider
- */
 export async function callProvider(
   provider: ProviderName,
   prompt: string,
-  userApiKeys?: UserApiKeys
+  userApiKeys?: UserApiKeys,
+  images?: { data: string; mimeType: string }[]
 ): Promise<string> {
-  const fn = PROVIDER_FUNCTIONS[provider];
   const apiKey = userApiKeys?.[provider as keyof UserApiKeys];
+
+  // Gemini supports vision natively
+  if (provider === 'gemini' && images && images.length > 0) {
+    return callGemini(prompt, apiKey, images);
+  }
+
+  const fn = PROVIDER_FUNCTIONS[provider];
   return fn(prompt, apiKey);
 }
 
-const PROVIDER_TIMEOUT_MS = 10000; // 10 second timeout per provider
+const PROVIDER_TIMEOUT_MS = 15000; // 15 second timeout (longer for vision)
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -79,16 +78,14 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   ]);
 }
 
-/**
- * Call all available providers in parallel with timeout
- */
 export async function callAllProviders(
   providers: ProviderName[],
   prompt: string | ((provider: ProviderName) => string),
   round: number,
   userApiKeys?: UserApiKeys,
   onResponse?: (response: AIResponse) => void,
-  demoMode: boolean = false
+  demoMode: boolean = false,
+  images?: { data: string; mimeType: string }[]
 ): Promise<AIResponse[]> {
   const results = await Promise.allSettled(
     providers.map(async (provider) => {
@@ -100,7 +97,7 @@ export async function callAllProviders(
         } else {
           const p = typeof prompt === 'function' ? prompt(provider) : prompt;
           content = await withTimeout(
-            callProvider(provider, p, userApiKeys),
+            callProvider(provider, p, userApiKeys, images),
             PROVIDER_TIMEOUT_MS,
             provider
           );
@@ -124,7 +121,6 @@ export async function callAllProviders(
     .filter((r): r is PromiseFulfilledResult<AIResponse> => r.status === 'fulfilled')
     .map((r) => r.value);
 
-  // If all real providers failed, fall back to demo
   if (successful.length === 0 && !demoMode) {
     console.log('[HiveMinds] All providers failed — falling back to demo mode');
     return callAllProviders(providers, prompt, round, userApiKeys, onResponse, true);
