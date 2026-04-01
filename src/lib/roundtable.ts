@@ -1,9 +1,10 @@
 import { ProviderName, AIResponse, Round, UserApiKeys } from '@/types';
 import { MIN_PROVIDERS_FOR_DISCUSSION } from './constants';
-import { callAllProviders, getAvailableProviders } from './providers';
+import { callAllProviders, callProvider, getAvailableProviders } from './providers';
 import { getInitialPrompt } from './prompts';
 import { synthesizeConsensus } from './synthesize';
 import { getDemoConsensus, getDemoResponse } from './providers/demo';
+import { isSimpleQuestion } from './complexity';
 
 export interface RoundtableCallbacks {
   onRoundStart: (round: number) => void;
@@ -41,8 +42,94 @@ async function runDemoRoundtable(
 }
 
 /**
- * Orchestrate a fast single-round discussion.
- * All providers answer in parallel, then Groq synthesizes.
+ * Fast path: single AI answers a simple question directly.
+ */
+async function runQuickAnswer(
+  question: string,
+  callbacks: RoundtableCallbacks,
+  userApiKeys?: UserApiKeys
+): Promise<void> {
+  try {
+    callbacks.onRoundStart(1);
+
+    // Use Groq (fastest) for quick answers
+    const content = await callProvider(
+      'groq',
+      `Answer this question directly and concisely: "${question}"`,
+      userApiKeys
+    );
+
+    const response: AIResponse = {
+      provider: 'groq' as ProviderName,
+      content,
+      round: 1,
+      timestamp: Date.now(),
+    };
+    callbacks.onAIResponse(response);
+    callbacks.onConvergence(true, 1);
+    callbacks.onConsensus(content);
+  } catch (error) {
+    // If quick answer fails, fall back to full roundtable
+    console.log('[HiveMinds] Quick answer failed, using full roundtable');
+    return runFullRoundtable(question, callbacks, userApiKeys);
+  }
+
+  callbacks.onDone();
+}
+
+/**
+ * Full roundtable: all providers answer in parallel, then synthesize.
+ */
+async function runFullRoundtable(
+  question: string,
+  callbacks: RoundtableCallbacks,
+  userApiKeys?: UserApiKeys,
+  isPaid: boolean = false
+): Promise<void> {
+  const providers = getAvailableProviders(userApiKeys, isPaid);
+
+  if (providers.length < MIN_PROVIDERS_FOR_DISCUSSION) {
+    return runDemoRoundtable(question, callbacks);
+  }
+
+  try {
+    callbacks.onRoundStart(1);
+
+    const round1Responses = await callAllProviders(
+      providers,
+      (provider) => getInitialPrompt(provider, question),
+      1,
+      userApiKeys,
+      callbacks.onAIResponse
+    );
+
+    if (round1Responses.length < MIN_PROVIDERS_FOR_DISCUSSION) {
+      return runDemoRoundtable(question, callbacks);
+    }
+
+    const allRounds: Round[] = [{ number: 1, responses: round1Responses }];
+
+    callbacks.onConvergence(true, 1);
+
+    let consensus: string;
+    try {
+      consensus = await synthesizeConsensus(question, allRounds, userApiKeys);
+    } catch {
+      consensus = allRounds[0].responses.map((r) => r.content).join('\n\n');
+    }
+
+    callbacks.onConsensus(consensus);
+  } catch (error) {
+    callbacks.onError(
+      error instanceof Error ? error.message : 'An unexpected error occurred'
+    );
+  }
+
+  callbacks.onDone();
+}
+
+/**
+ * Main entry point: routes to quick answer or full roundtable based on complexity.
  */
 export async function runRoundtable(
   question: string,
@@ -58,46 +145,15 @@ export async function runRoundtable(
   console.log('[HiveMinds] Available providers:', providers, '| isPaid:', isPaid);
 
   if (providers.length < MIN_PROVIDERS_FOR_DISCUSSION) {
-    console.log('[HiveMinds] Not enough providers, using demo mode');
     return runDemoRoundtable(question, callbacks);
   }
 
-  try {
-    // === SINGLE ROUND: All providers answer in parallel with timeout ===
-    callbacks.onRoundStart(1);
-
-    const round1Responses = await callAllProviders(
-      providers,
-      (provider) => getInitialPrompt(provider, question),
-      1,
-      userApiKeys,
-      callbacks.onAIResponse
-    );
-
-    if (round1Responses.length < MIN_PROVIDERS_FOR_DISCUSSION) {
-      console.log('[HiveMinds] Round 1 failed, switching to demo mode');
-      return runDemoRoundtable(question, callbacks);
-    }
-
-    const allRounds: Round[] = [{ number: 1, responses: round1Responses }];
-
-    // === SYNTHESIZE immediately — no convergence check needed for 1 round ===
-    callbacks.onConvergence(true, 1);
-
-    let consensus: string;
-    try {
-      consensus = await synthesizeConsensus(question, allRounds, userApiKeys);
-    } catch {
-      const lastRound = allRounds[allRounds.length - 1];
-      consensus = lastRound.responses.map((r) => r.content).join('\n\n');
-    }
-
-    callbacks.onConsensus(consensus);
-  } catch (error) {
-    callbacks.onError(
-      error instanceof Error ? error.message : 'An unexpected error occurred'
-    );
+  // Smart routing: simple questions get instant answers
+  if (isSimpleQuestion(question)) {
+    console.log('[HiveMinds] Simple question detected, using quick answer');
+    return runQuickAnswer(question, callbacks, userApiKeys);
   }
 
-  callbacks.onDone();
+  console.log('[HiveMinds] Complex question, using full roundtable');
+  return runFullRoundtable(question, callbacks, userApiKeys, isPaid);
 }
