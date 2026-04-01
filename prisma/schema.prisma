@@ -60,10 +60,21 @@ model VerificationToken {
 }
 
 model Conversation {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  question  String
-  consensus String?
-  createdAt DateTime @default(now())
+  id        String    @id @default(cuid())
+  userId    String?
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String?
+  messages  Message[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           String       // 'user' or 'hivemind'
+  content        String
+  discussion     Json?        // Store full roundtable discussion as JSON
+  createdAt      DateTime     @default(now())
 }

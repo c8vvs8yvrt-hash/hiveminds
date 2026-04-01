@@ -5,7 +5,14 @@ import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, Discuss
 import ConsensusMessage from './ConsensusMessage';
 import MessageInput from './MessageInput';
 import ModeSelector from './ModeSelector';
-import { Settings } from 'lucide-react';
+import { Settings, Plus, Trash2, Menu, X } from 'lucide-react';
+
+interface ConversationSummary {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function ChatWindow() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -15,8 +22,12 @@ export default function ChatWindow() {
   const [mode, setMode] = useState<DiscussionMode>('instant');
   const [autoSwitch, setAutoSwitch] = useState(true);
   const [upgradedPill, setUpgradedPill] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [conversations, setConversations] = useState<ConversationSummary[]>([]);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Load settings from localStorage
   useEffect(() => {
     const stored = localStorage.getItem('hiveminds_apikeys');
     if (stored) {
@@ -26,7 +37,59 @@ export default function ChatWindow() {
     if (savedMode) setMode(savedMode);
     const savedAutoSwitch = localStorage.getItem('hiveminds_autoswitch');
     if (savedAutoSwitch !== null) setAutoSwitch(savedAutoSwitch === 'true');
+    loadConversations();
   }, []);
+
+  const loadConversations = async () => {
+    try {
+      const res = await fetch('/api/conversations');
+      const data = await res.json();
+      setConversations(data.conversations || []);
+    } catch { /* ignore */ }
+  };
+
+  const loadConversation = async (id: string) => {
+    try {
+      const res = await fetch(`/api/conversations/${id}`);
+      const data = await res.json();
+      if (data.conversation) {
+        const msgs: ChatMessage[] = data.conversation.messages.map((m: { id: string; role: string; content: string; discussion: Discussion | null; createdAt: string }) => ({
+          id: m.id,
+          role: m.role === 'hivemind' ? 'hivemind' : 'user',
+          content: m.content,
+          discussion: m.role === 'hivemind' ? (m.discussion as Discussion || {
+            id: m.id,
+            question: '',
+            rounds: [],
+            consensus: m.content,
+            convergedAtRound: null,
+            status: 'complete' as const,
+          }) : undefined,
+          timestamp: new Date(m.createdAt).getTime(),
+        }));
+        setMessages(msgs);
+        setConversationId(id);
+        setSidebarOpen(false);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const deleteConversation = async (id: string) => {
+    try {
+      await fetch(`/api/conversations/${id}`, { method: 'DELETE' });
+      setConversations((prev) => prev.filter((c) => c.id !== id));
+      if (conversationId === id) {
+        setMessages([]);
+        setConversationId(null);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const startNewChat = () => {
+    setMessages([]);
+    setConversationId(null);
+    setSidebarOpen(false);
+  };
 
   const handleModeChange = (newMode: DiscussionMode) => {
     setMode(newMode);
@@ -75,10 +138,32 @@ export default function ChatWindow() {
     setMessages((prev) => [...prev, userMsg, aiMsg]);
     setIsLoading(true);
 
+    // Create or get conversation
+    let convId = conversationId;
+    try {
+      if (!convId) {
+        const convRes = await fetch('/api/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: message.length > 50 ? message.slice(0, 50) + '...' : message }),
+        });
+        const convData = await convRes.json();
+        convId = convData.conversation.id;
+        setConversationId(convId);
+      }
+
+      // Save user message
+      await fetch(`/api/conversations/${convId}/messages`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'user', content: message }),
+      });
+    } catch { /* continue even if save fails */ }
+
     try {
       const hasUserKeys = Object.values(apiKeys).some((k) => k?.trim());
 
-      // Build conversation history for context (last 10 messages)
+      // Build conversation history for context
       const history = messages.slice(-10).map((m) => ({
         role: m.role,
         content: m.role === 'hivemind' ? (m.discussion?.consensus || '') : m.content,
@@ -102,6 +187,7 @@ export default function ChatWindow() {
       const reader = response.body?.getReader();
       const decoder = new TextDecoder();
       let buffer = '';
+      let finalConsensus = '';
 
       if (!reader) throw new Error('No response stream');
 
@@ -130,7 +216,6 @@ export default function ChatWindow() {
 
           const data = JSON.parse(eventData);
 
-          // Handle mode event (auto-upgrade notification)
           if (eventType === 'mode') {
             if (data.wasUpgraded) {
               setUpgradedPill(true);
@@ -180,6 +265,7 @@ export default function ChatWindow() {
               case 'consensus': {
                 disc.consensus = data.content as string;
                 disc.status = 'complete';
+                finalConsensus = data.content as string;
                 break;
               }
               case 'error': {
@@ -193,6 +279,18 @@ export default function ChatWindow() {
             return updated;
           });
         }
+      }
+
+      // Save AI response to DB
+      if (convId && finalConsensus) {
+        try {
+          await fetch(`/api/conversations/${convId}/messages`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: 'hivemind', content: finalConsensus }),
+          });
+          loadConversations();
+        } catch { /* ignore */ }
       }
     } catch (error) {
       setMessages((prev) => {
@@ -221,89 +319,176 @@ export default function ChatWindow() {
     setShowApiKeyModal(false);
   };
 
+  // Group conversations by date
+  const groupedConversations = conversations.reduce<Record<string, ConversationSummary[]>>((acc, conv) => {
+    const date = new Date(conv.updatedAt);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    let label: string;
+    if (diffDays === 0) label = 'Today';
+    else if (diffDays === 1) label = 'Yesterday';
+    else if (diffDays < 7) label = 'This week';
+    else label = 'Older';
+    if (!acc[label]) acc[label] = [];
+    acc[label].push(conv);
+    return acc;
+  }, {});
+
   return (
-    <div className="flex flex-col h-screen bg-zinc-950">
-      {/* Header */}
-      <header className="border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-sm px-4 py-3">
-        <div className="max-w-3xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <span className="text-lg">🐝</span>
-              <h1 className="text-base font-semibold text-zinc-200">HiveMinds</h1>
-            </div>
-            <div className="h-4 w-px bg-zinc-700" />
-            <ModeSelector
-              mode={mode}
-              onModeChange={handleModeChange}
-              autoSwitch={autoSwitch}
-              onAutoSwitchChange={handleAutoSwitchChange}
-            />
-          </div>
+    <div className="flex h-screen bg-zinc-950">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-40 w-64 h-full bg-zinc-900 border-r border-zinc-800/50 flex flex-col transition-transform duration-200`}>
+        {/* Sidebar header */}
+        <div className="p-3 border-b border-zinc-800/50 flex items-center justify-between">
           <button
-            onClick={() => setShowApiKeyModal(true)}
-            className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50"
+            onClick={startNewChat}
+            className="flex items-center gap-2 text-sm text-zinc-300 hover:text-zinc-100 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg transition-colors flex-1"
           >
-            <Settings size={16} />
+            <Plus size={16} />
+            New chat
+          </button>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden p-2 text-zinc-500 hover:text-zinc-300"
+          >
+            <X size={16} />
           </button>
         </div>
-      </header>
 
-      {/* Upgraded pill notification */}
-      {upgradedPill && (
-        <div className="flex justify-center py-2">
-          <span className="text-xs bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-medium animate-pulse">
-            Upgraded to Thinking
-          </span>
-        </div>
-      )}
-
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
-        <div className="max-w-3xl mx-auto space-y-6">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
-              <span className="text-4xl mb-6">🐝</span>
-              <h2 className="text-xl font-medium text-zinc-300 mb-1">
-                What can I help with?
-              </h2>
-            </div>
-          )}
-
-          {messages.map((msg) => (
-            <div key={msg.id}>
-              {msg.role === 'user' ? (
-                <div className="flex justify-end">
-                  <div className="bg-zinc-800 text-zinc-100 rounded-2xl px-4 py-3 max-w-[85%]">
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <div className="flex gap-2 mb-2 flex-wrap">
-                        {msg.attachments.filter(a => a.type === 'image').map((att, i) => (
-                          <img key={i} src={att.data} alt={att.name} className="max-h-32 rounded-lg" />
-                        ))}
-                      </div>
-                    )}
-                    {msg.content && <p className="text-sm leading-relaxed">{msg.content}</p>}
-                  </div>
+        {/* Conversation list */}
+        <div className="flex-1 overflow-y-auto px-2 py-2">
+          {Object.entries(groupedConversations).map(([label, convs]) => (
+            <div key={label} className="mb-3">
+              <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider px-2 mb-1">{label}</p>
+              {convs.map((conv) => (
+                <div
+                  key={conv.id}
+                  className={`group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors ${
+                    conversationId === conv.id
+                      ? 'bg-zinc-800 text-zinc-100'
+                      : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
+                  }`}
+                  onClick={() => loadConversation(conv.id)}
+                >
+                  <span className="truncate flex-1">{conv.title || 'New chat'}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                    className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-all"
+                  >
+                    <Trash2 size={12} />
+                  </button>
                 </div>
-              ) : (
-                <div className="flex gap-3 items-start">
-                  <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-1">
-                    <span className="text-xs">🐝</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    {msg.discussion && (
-                      <ConsensusMessage discussion={msg.discussion} />
-                    )}
-                  </div>
-                </div>
-              )}
+              ))}
             </div>
           ))}
-          <div ref={messagesEndRef} />
+          {conversations.length === 0 && (
+            <p className="text-xs text-zinc-600 text-center py-8">No conversations yet</p>
+          )}
         </div>
       </div>
 
-      {/* Input */}
-      <MessageInput onSend={handleSend} disabled={isLoading} />
+      {/* Sidebar backdrop on mobile */}
+      {sidebarOpen && (
+        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Main chat area */}
+      <div className="flex flex-col flex-1 min-w-0">
+        {/* Header */}
+        <header className="border-b border-zinc-800/50 bg-zinc-950/80 backdrop-blur-sm px-4 py-3">
+          <div className="max-w-3xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50 md:hidden"
+              >
+                <Menu size={18} />
+              </button>
+              <button
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                className="hidden md:block p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50"
+              >
+                <Menu size={18} />
+              </button>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🐝</span>
+                <h1 className="text-base font-semibold text-zinc-200">HiveMinds</h1>
+              </div>
+              <div className="h-4 w-px bg-zinc-700" />
+              <ModeSelector
+                mode={mode}
+                onModeChange={handleModeChange}
+                autoSwitch={autoSwitch}
+                onAutoSwitchChange={handleAutoSwitchChange}
+              />
+            </div>
+            <button
+              onClick={() => setShowApiKeyModal(true)}
+              className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50"
+            >
+              <Settings size={16} />
+            </button>
+          </div>
+        </header>
+
+        {/* Upgraded pill notification */}
+        {upgradedPill && (
+          <div className="flex justify-center py-2">
+            <span className="text-xs bg-amber-500/20 text-amber-400 px-3 py-1 rounded-full font-medium animate-pulse">
+              Upgraded to Thinking
+            </span>
+          </div>
+        )}
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-6">
+          <div className="max-w-3xl mx-auto space-y-6">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
+                <span className="text-4xl mb-6">🐝</span>
+                <h2 className="text-xl font-medium text-zinc-300 mb-1">
+                  What can I help with?
+                </h2>
+                <p className="text-sm text-zinc-500">5 AIs will debate your question</p>
+              </div>
+            )}
+
+            {messages.map((msg) => (
+              <div key={msg.id}>
+                {msg.role === 'user' ? (
+                  <div className="flex justify-end">
+                    <div className="bg-zinc-800 text-zinc-100 rounded-2xl px-4 py-3 max-w-[85%]">
+                      {msg.attachments && msg.attachments.length > 0 && (
+                        <div className="flex gap-2 mb-2 flex-wrap">
+                          {msg.attachments.filter(a => a.type === 'image').map((att, i) => (
+                            <img key={i} src={att.data} alt={att.name} className="max-h-32 rounded-lg" />
+                          ))}
+                        </div>
+                      )}
+                      {msg.content && <p className="text-sm leading-relaxed">{msg.content}</p>}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-3 items-start">
+                    <div className="w-7 h-7 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0 mt-1">
+                      <span className="text-xs">🐝</span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      {msg.discussion && (
+                        <ConsensusMessage discussion={msg.discussion} />
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        </div>
+
+        {/* Input */}
+        <MessageInput onSend={handleSend} disabled={isLoading} />
+      </div>
 
       {/* API Key Modal */}
       {showApiKeyModal && (
