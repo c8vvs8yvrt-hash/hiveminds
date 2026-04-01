@@ -51,7 +51,7 @@ export const PRICING = {
 };
 
 export const MAX_ROUNDS = 4;
-export const MIN_PROVIDERS_FOR_DISCUSSION = 2;
+export const MIN_PROVIDERS_FOR_DISCUSSION = 1;
 
 export const MODE_CONFIG: Record<DiscussionMode, {
   label: string;

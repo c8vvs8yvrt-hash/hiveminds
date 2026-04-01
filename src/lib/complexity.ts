@@ -5,7 +5,8 @@ const COMPLEX_KEYWORDS = [
   'what should', 'what would', 'strategy', 'trade-off', 'tradeoff', 'pros and cons',
   'best way', 'recommend', 'suggest', 'opinion', 'difference between', 'versus', ' vs ',
   'debug', 'refactor', 'optimize', 'architecture', 'design', 'implement',
-  'help me', 'write a', 'create a', 'build a', 'plan for',
+  'help me', 'write a', 'write me', 'create a', 'build a', 'plan for',
+  'essay', 'code for', 'tutorial', 'guide', 'step by step', 'in detail',
 ];
 
 /**

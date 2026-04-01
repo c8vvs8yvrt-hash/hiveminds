@@ -81,11 +81,18 @@ export async function runRoundtable(
     if (mode === 'instant') {
       callbacks.onConvergence(true, 1);
       let consensus: string;
-      try {
-        consensus = await synthesizeConsensus(question, allRounds, userApiKeys);
-      } catch {
-        consensus = round1Responses.map((r) => r.content).join('\n\n');
+
+      // If only 1 response, use it directly — no synthesis needed
+      if (round1Responses.length === 1) {
+        consensus = round1Responses[0].content;
+      } else {
+        try {
+          consensus = await synthesizeConsensus(question, allRounds, userApiKeys);
+        } catch {
+          consensus = round1Responses.map((r) => r.content).join('\n\n');
+        }
       }
+
       callbacks.onConsensus(consensus);
       callbacks.onDone();
       return;
