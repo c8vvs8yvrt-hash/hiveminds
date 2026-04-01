@@ -1,8 +1,7 @@
 import { ProviderName, AIResponse, Round, UserApiKeys } from '@/types';
-import { MAX_ROUNDS, MIN_PROVIDERS_FOR_DISCUSSION } from './constants';
+import { MIN_PROVIDERS_FOR_DISCUSSION } from './constants';
 import { callAllProviders, getAvailableProviders } from './providers';
-import { getInitialPrompt, getDiscussionPrompt } from './prompts';
-import { checkConvergence } from './convergence';
+import { getInitialPrompt } from './prompts';
 import { synthesizeConsensus } from './synthesize';
 import { getDemoConsensus, getDemoResponse } from './providers/demo';
 
@@ -25,25 +24,14 @@ async function runDemoRoundtable(
   const providers: ProviderName[] = ['gemini', 'groq', 'mistral'];
 
   try {
-    // Round 1
     callbacks.onRoundStart(1);
     for (const provider of providers) {
       const content = await getDemoResponse(provider, 1, question);
       callbacks.onAIResponse({ provider, content, round: 1, timestamp: Date.now() });
     }
 
-    // Round 2
-    callbacks.onRoundStart(2);
-    for (const provider of providers) {
-      const content = await getDemoResponse(provider, 2, question);
-      callbacks.onAIResponse({ provider, content, round: 2, timestamp: Date.now() });
-    }
-
-    // Converged
-    callbacks.onConvergence(true, 2);
-
-    // Synthesis
-    await new Promise((resolve) => setTimeout(resolve, 1200));
+    callbacks.onConvergence(true, 1);
+    await new Promise((resolve) => setTimeout(resolve, 800));
     callbacks.onConsensus(getDemoConsensus(question));
   } catch (error) {
     callbacks.onError(error instanceof Error ? error.message : 'Demo error');
@@ -53,8 +41,8 @@ async function runDemoRoundtable(
 }
 
 /**
- * Orchestrate a full roundtable discussion.
- * Falls back to demo mode if real providers aren't available or all fail.
+ * Orchestrate a fast single-round discussion.
+ * All providers answer in parallel, then Groq synthesizes.
  */
 export async function runRoundtable(
   question: string,
@@ -66,7 +54,6 @@ export async function runRoundtable(
 ): Promise<void> {
   const { userApiKeys, isPaid = false } = options;
 
-  // Determine available providers
   const providers = getAvailableProviders(userApiKeys, isPaid);
   console.log('[HiveMinds] Available providers:', providers, '| isPaid:', isPaid);
 
@@ -75,10 +62,8 @@ export async function runRoundtable(
     return runDemoRoundtable(question, callbacks);
   }
 
-  const allRounds: Round[] = [];
-
   try {
-    // === ROUND 1: Independent answers ===
+    // === SINGLE ROUND: All providers answer in parallel with timeout ===
     callbacks.onRoundStart(1);
 
     const round1Responses = await callAllProviders(
@@ -89,53 +74,20 @@ export async function runRoundtable(
       callbacks.onAIResponse
     );
 
-    // If all real providers failed, switch to demo mode
     if (round1Responses.length < MIN_PROVIDERS_FOR_DISCUSSION) {
       console.log('[HiveMinds] Round 1 failed, switching to demo mode');
       return runDemoRoundtable(question, callbacks);
     }
 
-    allRounds.push({ number: 1, responses: round1Responses });
+    const allRounds: Round[] = [{ number: 1, responses: round1Responses }];
 
-    // === ROUNDS 2+: Discussion until convergence ===
-    for (let roundNum = 2; roundNum <= MAX_ROUNDS; roundNum++) {
-      const lastRound = allRounds[allRounds.length - 1];
+    // === SYNTHESIZE immediately — no convergence check needed for 1 round ===
+    callbacks.onConvergence(true, 1);
 
-      // Check convergence
-      let converged = false;
-      try {
-        converged = await checkConvergence(question, lastRound.responses, userApiKeys);
-      } catch {
-        converged = allRounds.length >= 2; // Assume converged after 2+ rounds if check fails
-      }
-
-      callbacks.onConvergence(converged, roundNum - 1);
-      if (converged) break;
-
-      // Next discussion round
-      callbacks.onRoundStart(roundNum);
-
-      const previousResponses = lastRound.responses;
-      const roundResponses = await callAllProviders(
-        providers,
-        (provider) =>
-          getDiscussionPrompt(provider, question, previousResponses, roundNum),
-        roundNum,
-        userApiKeys,
-        callbacks.onAIResponse
-      );
-
-      if (roundResponses.length > 0) {
-        allRounds.push({ number: roundNum, responses: roundResponses });
-      }
-    }
-
-    // === FINAL SYNTHESIS ===
     let consensus: string;
     try {
       consensus = await synthesizeConsensus(question, allRounds, userApiKeys);
     } catch {
-      // Fallback: combine last round
       const lastRound = allRounds[allRounds.length - 1];
       consensus = lastRound.responses.map((r) => r.content).join('\n\n');
     }

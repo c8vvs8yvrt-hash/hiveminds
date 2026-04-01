@@ -68,8 +68,19 @@ export async function callProvider(
   return fn(prompt, apiKey);
 }
 
+const PROVIDER_TIMEOUT_MS = 10000; // 10 second timeout per provider
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 /**
- * Call all available providers in parallel
+ * Call all available providers in parallel with timeout
  */
 export async function callAllProviders(
   providers: ProviderName[],
@@ -88,7 +99,11 @@ export async function callAllProviders(
           content = await getDemoResponse(provider, round, q);
         } else {
           const p = typeof prompt === 'function' ? prompt(provider) : prompt;
-          content = await callProvider(provider, p, userApiKeys);
+          content = await withTimeout(
+            callProvider(provider, p, userApiKeys),
+            PROVIDER_TIMEOUT_MS,
+            provider
+          );
         }
         const response: AIResponse = {
           provider,
