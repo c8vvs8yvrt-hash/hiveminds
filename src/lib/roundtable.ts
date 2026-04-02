@@ -1,6 +1,6 @@
 import { ProviderName, AIResponse, Round, UserApiKeys, DiscussionMode } from '@/types';
 import { MODE_CONFIG, MIN_PROVIDERS_FOR_DISCUSSION } from './constants';
-import { callAllProviders, callProvider, getAvailableProviders } from './providers';
+import { callAllProviders } from './providers';
 import { getInitialPrompt, getDiscussionPrompt } from './prompts';
 import { synthesizeConsensus } from './synthesize';
 import { checkConvergence } from './convergence';
@@ -49,7 +49,7 @@ export async function runRoundtable(
   const { userApiKeys, isPaid = false, mode = 'instant', images, history } = options;
   const config = MODE_CONFIG[mode];
 
-  // Filter to available providers from the mode's list
+  // All modes use all available providers
   const allAvailable = getAvailableProviders(userApiKeys, isPaid);
   const providers = config.providers.filter((p) => allAvailable.includes(p));
 
@@ -60,7 +60,7 @@ export async function runRoundtable(
   }
 
   try {
-    // === ROUND 1: All providers answer in parallel ===
+    // === ROUND 1: ALL AIs answer the question independently ===
     callbacks.onRoundStart(1);
     const round1Responses = await callAllProviders(
       providers,
@@ -78,43 +78,23 @@ export async function runRoundtable(
 
     const allRounds: Round[] = [{ number: 1, responses: round1Responses }];
 
-    // === INSTANT MODE: skip multi-round, go straight to synthesis ===
-    if (mode === 'instant') {
-      callbacks.onConvergence(true, 1);
-      let consensus: string;
-
-      // If only 1 response, use it directly — no synthesis needed
-      if (round1Responses.length === 1) {
-        consensus = round1Responses[0].content;
-      } else {
-        try {
-          consensus = await synthesizeConsensus(question, allRounds, userApiKeys, history);
-        } catch {
-          consensus = round1Responses.map((r) => r.content).join('\n\n');
-        }
-      }
-
-      callbacks.onConsensus(consensus);
-      callbacks.onDone();
-      return;
-    }
-
-    // === THINKING/DEEP: Multi-round discussion ===
+    // === ROUNDS 2+: AIs debate each other's answers ===
     for (let roundNum = 2; roundNum <= config.maxRounds; roundNum++) {
       const lastRound = allRounds[allRounds.length - 1];
 
-      // Check convergence
+      // Check if they already agree (skip unnecessary debate)
       let converged = false;
       try {
         converged = await checkConvergence(question, lastRound.responses, userApiKeys);
       } catch {
-        converged = allRounds.length >= 2;
+        // If convergence check fails, keep debating unless we have enough rounds
+        converged = allRounds.length >= 3;
       }
 
       callbacks.onConvergence(converged, roundNum - 1);
       if (converged) break;
 
-      // Next discussion round
+      // Each AI sees all previous answers and debates
       callbacks.onRoundStart(roundNum);
       const roundResponses = await callAllProviders(
         providers,
@@ -129,11 +109,12 @@ export async function runRoundtable(
       }
     }
 
-    // === FINAL SYNTHESIS ===
+    // === FINAL SYNTHESIS: Combine the best from all AIs into one answer ===
     let consensus: string;
     try {
       consensus = await synthesizeConsensus(question, allRounds, userApiKeys, history);
     } catch {
+      // Fallback: just combine last round's responses
       const lastRound = allRounds[allRounds.length - 1];
       consensus = lastRound.responses.map((r) => r.content).join('\n\n');
     }
@@ -145,3 +126,6 @@ export async function runRoundtable(
 
   callbacks.onDone();
 }
+
+// Re-export for use in roundtable
+import { getAvailableProviders } from './providers';

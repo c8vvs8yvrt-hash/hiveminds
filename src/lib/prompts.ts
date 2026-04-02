@@ -49,19 +49,22 @@ export function getDiscussionPrompt(
     })
     .join('\n\n');
 
-  return `You are ${display} in round ${round} of a discussion with other AIs about the user's question.
+  return `You are ${display}. You and other AIs all answered the user's question independently. Now you can see everyone's answers. Compare them to yours and debate.
 
 User asked: "${question}"
 
-Other AIs answered:
+All AI answers from the previous round:
 ${responsesText}
 
-Now respond:
-- If you agree with the other answers, say so briefly and add anything they missed.
-- If you disagree or see errors in what others said, call them out by name and explain why. Be specific — "Gemini said X but actually Y because Z."
-- If someone's answer is incomplete or could be better, improve on it.
-- Add any important information, examples, or nuance that was missed.
-- Keep your response focused and useful — don't repeat what's already been said well.`;
+YOUR JOB — compare, contrast, and debate:
+1. READ every other AI's answer carefully. Compare them to what you said.
+2. Call out SPECIFIC things other AIs got wrong or could improve — use their names: "GPT-4o said X, but that's not quite right because..."
+3. If another AI gave a better answer than yours on some point, acknowledge it: "Llama's point about X is stronger than mine."
+4. Add anything important that ALL of you missed.
+5. If you were wrong about something, say so and correct yourself.
+6. Defend your answer where you believe you're right and others are wrong.
+
+Be direct and specific. Don't just say "I agree with everyone." Push back where needed.`;
 }
 
 export function getConvergencePrompt(

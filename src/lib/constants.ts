@@ -69,21 +69,21 @@ export const MODE_CONFIG: Record<DiscussionMode, {
 }> = {
   instant: {
     label: 'Instant',
-    subtitle: 'For everyday questions',
-    providers: ['groq', 'openai'],
-    maxRounds: 1,
+    subtitle: 'All AIs answer, 1 round of debate',
+    providers: ['openai', 'gemini', 'groq', 'cohere', 'openrouter'],
+    maxRounds: 2,
     requiresPro: false,
   },
   thinking: {
     label: 'Thinking',
-    subtitle: 'For complex questions',
+    subtitle: 'All AIs answer, deeper debate',
     providers: ['openai', 'gemini', 'groq', 'cohere', 'openrouter'],
     maxRounds: 3,
     requiresPro: false,
   },
   deep: {
     label: 'Deep',
-    subtitle: 'For research-grade answers',
+    subtitle: 'All AIs answer, thorough debate',
     providers: ['openai', 'gemini', 'groq', 'cohere', 'openrouter'],
     maxRounds: 5,
     requiresPro: true,
