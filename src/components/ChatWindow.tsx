@@ -5,11 +5,21 @@ import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, Discuss
 import ConsensusMessage from './ConsensusMessage';
 import MessageInput from './MessageInput';
 import ModeSelector from './ModeSelector';
-import { Settings, Plus, Trash2, Menu, X } from 'lucide-react';
+import { Settings, Plus, Trash2, Menu, X, FolderOpen, MessageSquare, MoreHorizontal } from 'lucide-react';
 
 interface ConversationSummary {
   id: string;
   title: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ProjectSummary {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string | null;
+  _count: { conversations: number };
   createdAt: string;
   updatedAt: string;
 }
@@ -34,6 +44,10 @@ export default function ChatWindow() {
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'chats' | 'projects'>('chats');
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [showNewProject, setShowNewProject] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load settings from localStorage
@@ -47,6 +61,7 @@ export default function ChatWindow() {
     const savedAutoSwitch = localStorage.getItem('hiveminds_autoswitch');
     if (savedAutoSwitch !== null) setAutoSwitch(savedAutoSwitch === 'true');
     loadConversations();
+    loadProjects();
   }, []);
 
   const loadConversations = async () => {
@@ -57,6 +72,53 @@ export default function ChatWindow() {
       });
       const data = await res.json();
       setConversations(data.conversations || []);
+    } catch { /* ignore */ }
+  };
+
+  const loadProjects = async () => {
+    try {
+      const deviceId = getDeviceId();
+      const res = await fetch('/api/projects', {
+        headers: { 'x-device-id': deviceId },
+      });
+      const data = await res.json();
+      setProjects(data.projects || []);
+    } catch { /* ignore */ }
+  };
+
+  const createProject = async (name: string, emoji: string) => {
+    try {
+      const deviceId = getDeviceId();
+      await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
+        body: JSON.stringify({ name, emoji }),
+      });
+      loadProjects();
+      setShowNewProject(false);
+    } catch { /* ignore */ }
+  };
+
+  const deleteProject = async (id: string) => {
+    try {
+      await fetch(`/api/projects/${id}`, { method: 'DELETE' });
+      setProjects((prev) => prev.filter((p) => p.id !== id));
+      if (activeProjectId === id) {
+        setActiveProjectId(null);
+      }
+    } catch { /* ignore */ }
+  };
+
+  const openProject = async (id: string) => {
+    setActiveProjectId(id);
+    // Load conversations for this project
+    try {
+      const res = await fetch(`/api/projects/${id}`);
+      const data = await res.json();
+      if (data.project) {
+        setConversations(data.project.conversations || []);
+        setSidebarTab('chats');
+      }
     } catch { /* ignore */ }
   };
 
@@ -101,6 +163,11 @@ export default function ChatWindow() {
     setMessages([]);
     setConversationId(null);
     setSidebarOpen(false);
+  };
+
+  const exitProject = () => {
+    setActiveProjectId(null);
+    loadConversations();
   };
 
   const handleModeChange = (newMode: DiscussionMode) => {
@@ -158,7 +225,10 @@ export default function ChatWindow() {
         const convRes = await fetch('/api/conversations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
-          body: JSON.stringify({ title: message.length > 50 ? message.slice(0, 50) + '...' : message }),
+          body: JSON.stringify({
+            title: message.length > 50 ? message.slice(0, 50) + '...' : message,
+            projectId: activeProjectId || undefined,
+          }),
         });
         const convData = await convRes.json();
         convId = convData.conversation.id;
@@ -351,7 +421,7 @@ export default function ChatWindow() {
   return (
     <div className="flex h-screen bg-zinc-950">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative z-40 w-64 h-full bg-zinc-900 border-r border-zinc-800/50 flex flex-col transition-transform duration-200`}>
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed z-40 w-64 h-full bg-zinc-900 border-r border-zinc-800/50 flex flex-col transition-transform duration-200`}>
         {/* Sidebar header */}
         <div className="p-3 border-b border-zinc-800/50 flex items-center justify-between gap-2">
           <button
@@ -369,34 +439,122 @@ export default function ChatWindow() {
           </button>
         </div>
 
-        {/* Conversation list */}
+        {/* Tabs: Chats / Projects */}
+        <div className="flex border-b border-zinc-800/50">
+          <button
+            onClick={() => { setSidebarTab('chats'); if (!activeProjectId) loadConversations(); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors ${
+              sidebarTab === 'chats' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <MessageSquare size={14} />
+            Chats
+          </button>
+          <button
+            onClick={() => { setSidebarTab('projects'); loadProjects(); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-medium transition-colors ${
+              sidebarTab === 'projects' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+            }`}
+          >
+            <FolderOpen size={14} />
+            Projects
+          </button>
+        </div>
+
+        {/* Active project banner */}
+        {activeProjectId && sidebarTab === 'chats' && (
+          <div className="px-3 py-2 bg-amber-500/10 border-b border-amber-500/20 flex items-center justify-between">
+            <span className="text-xs text-amber-400 font-medium truncate">
+              {projects.find(p => p.id === activeProjectId)?.emoji}{' '}
+              {projects.find(p => p.id === activeProjectId)?.name}
+            </span>
+            <button onClick={exitProject} className="text-xs text-zinc-500 hover:text-zinc-300">
+              Exit
+            </button>
+          </div>
+        )}
+
+        {/* Content */}
         <div className="flex-1 overflow-y-auto px-2 py-2">
-          {Object.entries(groupedConversations).map(([label, convs]) => (
-            <div key={label} className="mb-3">
-              <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider px-2 mb-1">{label}</p>
-              {convs.map((conv) => (
+          {sidebarTab === 'chats' && (
+            <>
+              {Object.entries(groupedConversations).map(([label, convs]) => (
+                <div key={label} className="mb-3">
+                  <p className="text-[10px] font-medium text-zinc-500 uppercase tracking-wider px-2 mb-1">{label}</p>
+                  {convs.map((conv) => (
+                    <div
+                      key={conv.id}
+                      className={`group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors ${
+                        conversationId === conv.id
+                          ? 'bg-zinc-800 text-zinc-100'
+                          : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
+                      }`}
+                      onClick={() => loadConversation(conv.id)}
+                    >
+                      <span className="truncate flex-1">{conv.title || 'New chat'}</span>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                        className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-all"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+              {conversations.length === 0 && (
+                <p className="text-xs text-zinc-600 text-center py-8">No conversations yet</p>
+              )}
+            </>
+          )}
+
+          {sidebarTab === 'projects' && (
+            <>
+              {/* New project button */}
+              <button
+                onClick={() => setShowNewProject(true)}
+                className="w-full flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-200 px-2 py-2 rounded-lg hover:bg-zinc-800/50 transition-colors mb-2"
+              >
+                <Plus size={14} />
+                New project
+              </button>
+
+              {/* New project form */}
+              {showNewProject && (
+                <NewProjectForm
+                  onCreate={createProject}
+                  onCancel={() => setShowNewProject(false)}
+                />
+              )}
+
+              {/* Project list */}
+              {projects.map((project) => (
                 <div
-                  key={conv.id}
-                  className={`group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer text-sm transition-colors ${
-                    conversationId === conv.id
+                  key={project.id}
+                  className={`group flex items-center gap-2 px-2 py-2 rounded-lg cursor-pointer text-sm transition-colors ${
+                    activeProjectId === project.id
                       ? 'bg-zinc-800 text-zinc-100'
                       : 'text-zinc-400 hover:bg-zinc-800/50 hover:text-zinc-200'
                   }`}
-                  onClick={() => loadConversation(conv.id)}
+                  onClick={() => openProject(project.id)}
                 >
-                  <span className="truncate flex-1">{conv.title || 'New chat'}</span>
+                  <span className="text-base">{project.emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <span className="truncate block">{project.name}</span>
+                    <span className="text-[10px] text-zinc-600">{project._count.conversations} chats</span>
+                  </div>
                   <button
-                    onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}
+                    onClick={(e) => { e.stopPropagation(); deleteProject(project.id); }}
                     className="opacity-0 group-hover:opacity-100 p-1 text-zinc-500 hover:text-red-400 transition-all"
                   >
                     <Trash2 size={12} />
                   </button>
                 </div>
               ))}
-            </div>
-          ))}
-          {conversations.length === 0 && (
-            <p className="text-xs text-zinc-600 text-center py-8">No conversations yet</p>
+              {projects.length === 0 && !showNewProject && (
+                <p className="text-xs text-zinc-600 text-center py-6">Create a project to organize your chats</p>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -506,6 +664,55 @@ export default function ChatWindow() {
           onClose={() => setShowApiKeyModal(false)}
         />
       )}
+    </div>
+  );
+}
+
+function NewProjectForm({
+  onCreate,
+  onCancel,
+}: {
+  onCreate: (name: string, emoji: string) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState('');
+  const [emoji, setEmoji] = useState('📁');
+  const emojis = ['📁', '💼', '📚', '🎓', '💡', '🔬', '🎨', '💻', '📊', '🏗️', '✍️', '🧪'];
+
+  return (
+    <div className="bg-zinc-800/50 rounded-lg p-3 mb-2 border border-zinc-700/50">
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Project name"
+        autoFocus
+        className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:border-amber-500/50 mb-2"
+        onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) onCreate(name.trim(), emoji); }}
+      />
+      <div className="flex gap-1 flex-wrap mb-2">
+        {emojis.map((e) => (
+          <button
+            key={e}
+            onClick={() => setEmoji(e)}
+            className={`w-7 h-7 rounded text-sm flex items-center justify-center transition-colors ${
+              emoji === e ? 'bg-amber-500/20 ring-1 ring-amber-500' : 'hover:bg-zinc-700'
+            }`}
+          >
+            {e}
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <button onClick={onCancel} className="flex-1 text-xs text-zinc-500 hover:text-zinc-300 py-1.5">Cancel</button>
+        <button
+          onClick={() => name.trim() && onCreate(name.trim(), emoji)}
+          disabled={!name.trim()}
+          className="flex-1 text-xs bg-amber-500 text-black rounded-lg py-1.5 font-medium hover:bg-amber-400 disabled:opacity-30"
+        >
+          Create
+        </button>
+      </div>
     </div>
   );
 }

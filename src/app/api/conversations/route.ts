@@ -24,12 +24,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const deviceId = req.headers.get('x-device-id');
-  const { title } = body as { title?: string };
+  const { title, projectId } = body as { title?: string; projectId?: string };
 
   const conversation = await prisma.conversation.create({
     data: {
       title: title || 'New chat',
       userId: deviceId || null,
+      projectId: projectId || null,
     },
   });
 
