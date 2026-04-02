@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, X, Image as ImageIcon, Link as LinkIcon } from 'lucide-react';
+import { Send, Paperclip, X, Camera, Link as LinkIcon } from 'lucide-react';
 import { Attachment } from '@/types';
 
 interface MessageInputProps {
@@ -14,6 +14,7 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -38,31 +39,30 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
     }
   };
 
+  const addImageFile = (file: File) => {
+    if (!file.type.startsWith('image/')) return;
+    if (attachments.length >= 3) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      setAttachments((prev) => [
+        ...prev,
+        {
+          type: 'image',
+          data: dataUrl,
+          name: file.name,
+          mimeType: file.type,
+        },
+      ]);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
-
-    Array.from(files).forEach((file) => {
-      if (!file.type.startsWith('image/')) return;
-      if (attachments.length >= 3) return; // Max 3 images
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        setAttachments((prev) => [
-          ...prev,
-          {
-            type: 'image',
-            data: dataUrl,
-            name: file.name,
-            mimeType: file.type,
-          },
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    // Reset file input
+    Array.from(files).forEach(addImageFile);
     e.target.value = '';
   };
 
@@ -149,13 +149,31 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
             className="hidden"
           />
 
+          {/* Camera button */}
+          <button
+            onClick={() => cameraInputRef.current?.click()}
+            disabled={disabled || attachments.length >= 3}
+            className="p-1.5 text-zinc-500 hover:text-zinc-300 disabled:opacity-30 transition-colors flex-shrink-0 rounded-lg hover:bg-zinc-800/50"
+            title="Take photo"
+          >
+            <Camera size={16} />
+          </button>
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
           <textarea
             ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder="Ask the hive anything... (paste images or URLs)"
+            placeholder="Ask the hive anything..."
             disabled={disabled}
             rows={1}
             className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none text-sm leading-relaxed"
@@ -169,7 +187,7 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
           </button>
         </div>
         <p className="text-xs text-zinc-600 text-center mt-2">
-          Paste images, share URLs, or ask anything
+          Paste images, take photos, share URLs, or ask anything
         </p>
       </div>
     </div>

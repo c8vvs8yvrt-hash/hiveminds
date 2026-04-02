@@ -14,6 +14,15 @@ interface ConversationSummary {
   updatedAt: string;
 }
 
+function getDeviceId(): string {
+  let id = localStorage.getItem('hiveminds_device_id');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('hiveminds_device_id', id);
+  }
+  return id;
+}
+
 export default function ChatWindow() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +51,10 @@ export default function ChatWindow() {
 
   const loadConversations = async () => {
     try {
-      const res = await fetch('/api/conversations');
+      const deviceId = getDeviceId();
+      const res = await fetch('/api/conversations', {
+        headers: { 'x-device-id': deviceId },
+      });
       const data = await res.json();
       setConversations(data.conversations || []);
     } catch { /* ignore */ }
@@ -142,9 +154,10 @@ export default function ChatWindow() {
     let convId = conversationId;
     try {
       if (!convId) {
+        const deviceId = getDeviceId();
         const convRes = await fetch('/api/conversations', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-device-id': deviceId },
           body: JSON.stringify({ title: message.length > 50 ? message.slice(0, 50) + '...' : message }),
         });
         const convData = await convRes.json();
@@ -338,9 +351,9 @@ export default function ChatWindow() {
   return (
     <div className="flex h-screen bg-zinc-950">
       {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:relative z-40 w-64 h-full bg-zinc-900 border-r border-zinc-800/50 flex flex-col transition-transform duration-200`}>
+      <div className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} fixed md:relative z-40 w-64 h-full bg-zinc-900 border-r border-zinc-800/50 flex flex-col transition-transform duration-200`}>
         {/* Sidebar header */}
-        <div className="p-3 border-b border-zinc-800/50 flex items-center justify-between">
+        <div className="p-3 border-b border-zinc-800/50 flex items-center justify-between gap-2">
           <button
             onClick={startNewChat}
             className="flex items-center gap-2 text-sm text-zinc-300 hover:text-zinc-100 bg-zinc-800 hover:bg-zinc-700 px-3 py-2 rounded-lg transition-colors flex-1"
@@ -350,7 +363,7 @@ export default function ChatWindow() {
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-2 text-zinc-500 hover:text-zinc-300"
+            className="p-2 text-zinc-500 hover:text-zinc-300 rounded-lg hover:bg-zinc-800/50 transition-colors"
           >
             <X size={16} />
           </button>
@@ -388,9 +401,9 @@ export default function ChatWindow() {
         </div>
       </div>
 
-      {/* Sidebar backdrop on mobile */}
+      {/* Sidebar backdrop */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 bg-black/50 z-30" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Main chat area */}
@@ -401,13 +414,7 @@ export default function ChatWindow() {
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50 md:hidden"
-              >
-                <Menu size={18} />
-              </button>
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="hidden md:block p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50"
+                className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50"
               >
                 <Menu size={18} />
               </button>
