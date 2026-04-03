@@ -333,8 +333,7 @@ export default function MessageInput({ onSend, disabled }: MessageInputProps) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder={isListening ? 'Listening...' : 'Ask the hive anything...'}
-            disabled={disabled}
+            placeholder={isListening ? 'Listening...' : disabled ? 'Type your next message...' : 'Ask the hive anything...'}
             rows={1}
             className="flex-1 bg-transparent text-zinc-100 placeholder-zinc-500 resize-none focus:outline-none text-sm leading-relaxed"
           />

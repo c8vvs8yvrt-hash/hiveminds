@@ -653,7 +653,7 @@ export default function ChatWindow() {
         </div>
 
         {/* Input */}
-        <MessageInput onSend={handleSend} disabled={isLoading} />
+        <MessageInput onSend={handleSend} />
       </div>
 
       {/* API Key Modal */}
