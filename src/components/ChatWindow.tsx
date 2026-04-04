@@ -5,7 +5,7 @@ import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, Discuss
 import ConsensusMessage from './ConsensusMessage';
 import MessageInput from './MessageInput';
 import ModeSelector from './ModeSelector';
-import { Settings, Plus, Trash2, Menu, X, FolderOpen, MessageSquare, MoreHorizontal } from 'lucide-react';
+import { Settings, Plus, Trash2, Menu, X, FolderOpen, MessageSquare, MoreHorizontal, Eye, EyeOff } from 'lucide-react';
 
 interface ConversationSummary {
   id: string;
@@ -48,6 +48,7 @@ export default function ChatWindow() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [showNewProject, setShowNewProject] = useState(false);
+  const [cleanMode, setCleanMode] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Load settings from localStorage
@@ -609,12 +610,23 @@ export default function ChatWindow() {
                 onAutoSwitchChange={handleAutoSwitchChange}
               />
             </div>
-            <button
-              onClick={() => setShowApiKeyModal(true)}
-              className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50"
-            >
-              <Settings size={16} />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCleanMode(!cleanMode)}
+                className={`p-2 transition-colors rounded-lg hover:bg-zinc-800/50 ${
+                  cleanMode ? 'text-amber-400' : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+                title={cleanMode ? 'Show details (confidence, sources, debate)' : 'Clean mode (answer only)'}
+              >
+                {cleanMode ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+              <button
+                onClick={() => setShowApiKeyModal(true)}
+                className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors rounded-lg hover:bg-zinc-800/50"
+              >
+                <Settings size={16} />
+              </button>
+            </div>
           </div>
         </header>
 
@@ -662,7 +674,7 @@ export default function ChatWindow() {
                     </div>
                     <div className="flex-1 min-w-0">
                       {msg.discussion && (
-                        <ConsensusMessage discussion={msg.discussion} />
+                        <ConsensusMessage discussion={msg.discussion} cleanMode={cleanMode} />
                       )}
                     </div>
                   </div>
