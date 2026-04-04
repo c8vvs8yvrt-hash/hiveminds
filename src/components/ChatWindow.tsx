@@ -644,11 +644,38 @@ export default function ChatWindow() {
           <div className="max-w-3xl mx-auto space-y-6">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full min-h-[60vh]">
-                <span className="text-4xl mb-6">🐝</span>
-                <h2 className="text-xl font-medium text-zinc-300 mb-1">
-                  What can I help with?
+                <span className="text-4xl mb-4">🐝</span>
+                <h2 className="text-xl font-semibold text-zinc-200 mb-2">
+                  Ask anything. Get a verified answer.
                 </h2>
-                <p className="text-sm text-zinc-500">Multiple AI minds, one powerful answer</p>
+                <p className="text-sm text-zinc-500 text-center max-w-md mb-6">
+                  5 AI models answer independently, challenge each other, and a judge picks the strongest response — backed by evidence.
+                </p>
+                <div className="flex flex-wrap justify-center gap-3 mb-6">
+                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 bg-zinc-800/60 px-3 py-1.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                    Verified by multiple AIs
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 bg-zinc-800/60 px-3 py-1.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    Real disagreement + debate
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-zinc-400 bg-zinc-800/60 px-3 py-1.5 rounded-full">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                    Source-backed answers
+                  </div>
+                </div>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {['Is intermittent fasting actually healthy?', 'Compare React vs Vue for a startup', 'Why is the sky blue?'].map((q) => (
+                    <button
+                      key={q}
+                      onClick={() => handleSend(q)}
+                      className="text-xs text-zinc-500 hover:text-zinc-300 bg-zinc-800/40 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 px-3 py-2 rounded-lg transition-colors"
+                    >
+                      {q}
+                    </button>
+                  ))}
+                </div>
               </div>
             )}
 

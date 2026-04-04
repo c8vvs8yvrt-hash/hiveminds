@@ -24,6 +24,7 @@ export default function ConsensusMessage({ discussion, cleanMode = false }: Cons
 
   const isDebating = !discussion.consensus && discussion.status !== 'error';
   const confidence = discussion.confidence;
+  const modelCount = confidence?.totalModels || discussion.rounds[0]?.responses.length || 0;
 
   return (
     <div className="space-y-2">
@@ -68,6 +69,59 @@ export default function ConsensusMessage({ discussion, cleanMode = false }: Cons
         </div>
       )}
 
+      {/* === VERIFICATION HEADER (shown ABOVE the answer) === */}
+      {discussion.consensus && !cleanMode && (
+        <div className="flex items-center gap-3 flex-wrap pb-2 mb-1 border-b border-zinc-800/50">
+          {/* Verified badge */}
+          <div className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+            <CheckCircle2 size={13} />
+            <span className="font-medium">Verified by {modelCount} AI models</span>
+          </div>
+
+          {/* Confidence pill */}
+          {confidence && (
+            <div className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full ${
+              confidence.level === 'high'
+                ? 'bg-emerald-500/10 text-emerald-400'
+                : confidence.level === 'medium'
+                ? 'bg-amber-500/10 text-amber-400'
+                : 'bg-red-500/10 text-red-400'
+            }`}>
+              {confidence.level === 'high' ? (
+                <CheckCircle2 size={10} />
+              ) : confidence.level === 'medium' ? (
+                <AlertTriangle size={10} />
+              ) : (
+                <AlertCircle size={10} />
+              )}
+              <span className="font-medium capitalize">{confidence.level} confidence</span>
+            </div>
+          )}
+
+          {/* Source count */}
+          {discussion.sources && discussion.sources.length > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-blue-400">
+              <Globe size={11} />
+              <span>{discussion.sources.length} sources</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* === DISAGREEMENT SUMMARY (compact, visible by default) === */}
+      {discussion.consensus && !cleanMode && confidence && (
+        <>
+          {confidence.keyDisagreements && confidence.keyDisagreements.length > 0 && (
+            <div className="bg-amber-500/5 border border-amber-500/10 rounded-lg px-3 py-2 mb-2">
+              <span className="text-[11px] font-medium text-amber-400">Key disagreement: </span>
+              <span className="text-[11px] text-zinc-400">
+                {confidence.keyDisagreements[0]}
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
       {/* Final consensus answer */}
       {discussion.consensus && (
         <div className="text-zinc-200 text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-2 prose-li:my-0.5 prose-ol:my-2 prose-ul:my-2 prose-strong:text-zinc-100 prose-headings:text-zinc-100">
@@ -75,40 +129,12 @@ export default function ConsensusMessage({ discussion, cleanMode = false }: Cons
         </div>
       )}
 
-      {/* Everything below is hidden in clean mode */}
-      {!cleanMode && (
-        <>
-          {/* Confidence + Reasoning panel */}
-          {discussion.consensus && confidence && (
-            <div className="mt-3 space-y-2">
-              {/* Confidence badge */}
-              <div className="flex items-center gap-2 flex-wrap">
-                <div className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full ${
-                  confidence.level === 'high'
-                    ? 'bg-emerald-500/10 text-emerald-400'
-                    : confidence.level === 'medium'
-                    ? 'bg-amber-500/10 text-amber-400'
-                    : 'bg-red-500/10 text-red-400'
-                }`}>
-                  {confidence.level === 'high' ? (
-                    <CheckCircle2 size={12} />
-                  ) : confidence.level === 'medium' ? (
-                    <AlertTriangle size={12} />
-                  ) : (
-                    <AlertCircle size={12} />
-                  )}
-                  <span className="font-medium capitalize">{confidence.level} confidence</span>
-                  <span className="opacity-60">
-                    {confidence.confidenceScore > 0 && `(${Math.round(confidence.confidenceScore * 100)}%)`}
-                  </span>
-                </div>
-
-                <span className="text-[11px] text-zinc-500">
-                  {confidence.agreementCount}/{confidence.totalModels} models agreed
-                </span>
-              </div>
-
-              {/* Why this answer */}
+      {/* Everything below: expandable details */}
+      {!cleanMode && discussion.consensus && (
+        <div className="mt-3 pt-2 border-t border-zinc-800/30 space-y-2">
+          {/* Why this answer + more disagreements */}
+          {confidence && (
+            <>
               {confidence.whyThisAnswer && confidence.whyThisAnswer.length > 0 && (
                 <div className="text-[11px] text-zinc-400">
                   <span className="text-zinc-500 font-medium">Why this answer: </span>
@@ -116,11 +142,10 @@ export default function ConsensusMessage({ discussion, cleanMode = false }: Cons
                 </div>
               )}
 
-              {/* Key disagreements */}
-              {confidence.keyDisagreements && confidence.keyDisagreements.length > 0 && (
+              {confidence.keyDisagreements && confidence.keyDisagreements.length > 1 && (
                 <div className="space-y-0.5">
-                  <span className="text-[11px] text-zinc-500 font-medium">Key disagreements:</span>
-                  {confidence.keyDisagreements.slice(0, 3).map((d, i) => (
+                  <span className="text-[11px] text-zinc-500 font-medium">Other disagreements:</span>
+                  {confidence.keyDisagreements.slice(1, 3).map((d, i) => (
                     <p key={i} className="text-[11px] text-zinc-500 pl-2">
                       • {d}
                     </p>
@@ -172,11 +197,11 @@ export default function ConsensusMessage({ discussion, cleanMode = false }: Cons
                   )}
                 </>
               )}
-            </div>
+            </>
           )}
 
           {/* Sources */}
-          {discussion.consensus && discussion.sources && discussion.sources.length > 0 && (
+          {discussion.sources && discussion.sources.length > 0 && (
             <>
               <button
                 onClick={() => setShowSources(!showSources)}
@@ -227,11 +252,11 @@ export default function ConsensusMessage({ discussion, cleanMode = false }: Cons
             </>
           )}
 
-          {/* Toggle roundtable view after consensus */}
-          {discussion.rounds.length > 0 && discussion.consensus && (
+          {/* Toggle roundtable view */}
+          {discussion.rounds.length > 0 && (
             <button
               onClick={() => setShowRoundtable(!showRoundtable)}
-              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors mt-2"
+              className="flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors"
             >
               <MessageSquare size={12} />
               <span>
@@ -249,7 +274,7 @@ export default function ConsensusMessage({ discussion, cleanMode = false }: Cons
               <RoundtableView discussion={discussion} />
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );

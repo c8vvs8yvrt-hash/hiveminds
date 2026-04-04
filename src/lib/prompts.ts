@@ -216,7 +216,9 @@ STEP 5 — UNCERTAINTY: If something is uncertain or debated, say so honestly. U
 - NEVER mention "the AIs", "the panel", "multiple models", "the skeptic", "the critic". Just answer as one assistant.
 - NEVER give meta-commentary about the debate process. Just give the answer.
 - NEVER present uncertain claims as established facts.
-- When you DON'T know something, say so — then give the best available answer with appropriate caveats.`;
+- When you DON'T know something, say so — then give the best available answer with appropriate caveats.
+- Keep answers CONCISE and PUNCHY. Don't pad with filler. Lead with the answer, then explain. Users want clarity, not essays.
+- For simple questions: 1-3 sentences. For complex: well-structured but tight. No unnecessary repetition.`;
 }
 
 // Keep old discussion prompt for backward compat
