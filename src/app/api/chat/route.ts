@@ -108,6 +108,8 @@ export async function POST(req: NextRequest) {
             timestamp: response.timestamp,
           }),
           onConvergence: (agreed, round) => sendEvent('convergence', { agreed, round }),
+          onConfidence: (confidence) => sendEvent('confidence', { ...confidence }),
+          onSources: (sources) => sendEvent('sources', { sources }),
           onConsensus: (content) => sendEvent('consensus', { content }),
           onError: (error) => sendEvent('error', { message: error }),
           onDone: () => {

@@ -8,11 +8,29 @@ export interface ProviderConfig {
   model: string;
 }
 
+export type ModelRole = 'primary' | 'skeptic' | 'critic' | 'factchecker' | 'creative';
+
 export interface AIResponse {
   provider: ProviderName;
   content: string;
   round: number;
   timestamp: number;
+  role?: ModelRole;
+}
+
+export interface StructuredClaim {
+  claim: string;
+  supportedBy: string[];  // provider names
+  disputedBy: string[];
+}
+
+export interface ModelScore {
+  provider: string;
+  displayName: string;
+  accuracy: number;
+  reasoning: number;
+  completeness: number;
+  finalScore: number;
 }
 
 export interface Round {
@@ -20,11 +38,31 @@ export interface Round {
   responses: AIResponse[];
 }
 
+export interface ConfidenceInfo {
+  level: 'high' | 'medium' | 'low';
+  confidenceScore: number;       // 0-1
+  agreementCount: number;
+  totalModels: number;
+  disagreements: string[];
+  modelScores: ModelScore[];
+  keyDisagreements: string[];
+  whyThisAnswer: string[];
+}
+
+export interface SourceInfo {
+  title: string;
+  url: string;
+  tier: 1 | 2 | 3;
+  tierLabel: string;
+}
+
 export interface Discussion {
   id: string;
   question: string;
   rounds: Round[];
   consensus: string | null;
+  confidence: ConfidenceInfo | null;
+  sources: SourceInfo[];
   convergedAtRound: number | null;
   status: 'discussing' | 'converging' | 'complete' | 'error';
 }
@@ -73,6 +111,8 @@ export type SSEEventType =
   | 'round_start'
   | 'ai_response'
   | 'convergence'
+  | 'confidence'
+  | 'sources'
   | 'consensus'
   | 'error'
   | 'done';

@@ -9,6 +9,43 @@ const COMPLEX_KEYWORDS = [
   'essay', 'code for', 'tutorial', 'guide', 'step by step', 'in detail',
 ];
 
+const SIMPLE_PATTERNS = [
+  /^what is \d+[\s]*[+\-*/×÷]\s*\d+/i,
+  /^how much is \d+/i,
+  /^calculate /i,
+  /^define /i,
+  /^what does .{1,30} mean\??$/i,
+  /^what is the capital of /i,
+  /^who is /i,
+  /^when (was|is|did) /i,
+  /^where is /i,
+  /^(what|which) (year|day|month|date) /i,
+  /^(true or false|yes or no)[:\s]/i,
+  /^(translate|convert) /i,
+  /^\d+\s*[+\-*/×÷^%]\s*\d+\s*=?\s*$/,
+];
+
+/**
+ * Detect trivially simple questions (math, definitions, quick facts).
+ * These can skip debate entirely.
+ */
+export function isSimpleQuestion(question: string): boolean {
+  const q = question.trim();
+  const words = q.split(/\s+/);
+
+  // Very short (1-4 words) and no complex keywords
+  if (words.length <= 4 && !COMPLEX_KEYWORDS.some((kw) => q.toLowerCase().includes(kw))) {
+    return true;
+  }
+
+  // Matches a simple pattern
+  if (SIMPLE_PATTERNS.some((p) => p.test(q))) {
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Determine if auto-switch should upgrade from Instant to Thinking.
  */

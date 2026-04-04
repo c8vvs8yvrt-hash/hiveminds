@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, DiscussionMode, Attachment } from '@/types';
+import { ChatMessage, Discussion, AIResponse, ProviderName, UserApiKeys, DiscussionMode, Attachment, ConfidenceInfo, SourceInfo } from '@/types';
 import ConsensusMessage from './ConsensusMessage';
 import MessageInput from './MessageInput';
 import ModeSelector from './ModeSelector';
@@ -136,6 +136,8 @@ export default function ChatWindow() {
             question: '',
             rounds: [],
             consensus: m.content,
+            confidence: null,
+            sources: [],
             convergedAtRound: null,
             status: 'complete' as const,
           }) : undefined,
@@ -202,6 +204,8 @@ export default function ChatWindow() {
       question: message,
       rounds: [],
       consensus: null,
+      confidence: null,
+      sources: [],
       convergedAtRound: null,
       status: 'discussing',
     };
@@ -344,6 +348,23 @@ export default function ChatWindow() {
                   disc.convergedAtRound = data.round as number;
                   disc.status = 'converging';
                 }
+                break;
+              }
+              case 'sources': {
+                disc.sources = (data.sources as SourceInfo[]) || [];
+                break;
+              }
+              case 'confidence': {
+                disc.confidence = {
+                  level: data.level as 'high' | 'medium' | 'low',
+                  confidenceScore: (data.confidenceScore as number) || 0,
+                  agreementCount: data.agreementCount as number,
+                  totalModels: data.totalModels as number,
+                  disagreements: (data.disagreements as string[]) || [],
+                  modelScores: (data.modelScores as ConfidenceInfo['modelScores']) || [],
+                  keyDisagreements: (data.keyDisagreements as string[]) || [],
+                  whyThisAnswer: (data.whyThisAnswer as string[]) || [],
+                };
                 break;
               }
               case 'consensus': {

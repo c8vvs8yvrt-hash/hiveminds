@@ -1,8 +1,16 @@
 'use client';
 
-import { Discussion } from '@/types';
+import { Discussion, ModelRole } from '@/types';
 import { PROVIDERS } from '@/lib/constants';
 import { ProviderName } from '@/types';
+
+const ROLE_LABELS: Record<ModelRole, { label: string; color: string }> = {
+  primary: { label: 'Primary', color: '#60A5FA' },
+  skeptic: { label: 'Skeptic', color: '#F87171' },
+  critic: { label: 'Critic', color: '#FB923C' },
+  factchecker: { label: 'Fact Check', color: '#34D399' },
+  creative: { label: 'Creative', color: '#C084FC' },
+};
 import ReactMarkdown from 'react-markdown';
 
 const PROVIDER_ICONS: Record<ProviderName, string> = {
@@ -56,8 +64,21 @@ export default function RoundtableView({ discussion, compact }: RoundtableViewPr
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <span className="text-xs font-semibold" style={{ color }}>
-                      {name}
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-xs font-semibold" style={{ color }}>
+                        {name}
+                      </span>
+                      {response.role && ROLE_LABELS[response.role] && (
+                        <span
+                          className="text-[9px] font-medium px-1.5 py-0.5 rounded-full uppercase tracking-wide"
+                          style={{
+                            color: ROLE_LABELS[response.role].color,
+                            backgroundColor: ROLE_LABELS[response.role].color + '15',
+                          }}
+                        >
+                          {ROLE_LABELS[response.role].label}
+                        </span>
+                      )}
                     </span>
                     <div className="text-zinc-300 text-sm leading-relaxed mt-0.5 prose prose-invert prose-sm max-w-none prose-p:my-1 prose-p:text-sm">
                       <ReactMarkdown>{response.content}</ReactMarkdown>
